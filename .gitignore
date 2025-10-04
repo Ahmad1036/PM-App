@@ -1,0 +1,13 @@
+# macOS
+.DS_Store
+
+# Xcode
+*.xcodeproj/project.xcworkspace
+*.xcodeproj/xcuserdata
+*.xcworkspace
+
+
+!PM-App.xcworkspace
+
+# CocoaPods
+Pods/
