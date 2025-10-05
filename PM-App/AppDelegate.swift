@@ -14,6 +14,14 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
         // Override point for customization after application launch.
+        
+        // Verify New Kansas fonts are loaded (Debug only)
+        #if DEBUG
+        FontHelper.verifyNewKansasFonts()
+        // Uncomment to see all available fonts:
+        // FontHelper.printAvailableFonts()
+        #endif
+        
         return true
     }
 

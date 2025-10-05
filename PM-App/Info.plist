@@ -2,6 +2,24 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<key>UIAppFonts</key>
+	<array>
+		<string>New Kansas Regular.otf</string>
+		<string>New Kansas Medium.otf</string>
+		<string>New Kansas Bold.otf</string>
+		<string>New Kansas SemiBold.otf</string>
+		<string>New Kansas Light.otf</string>
+		<string>New Kansas Black.otf</string>
+		<string>New Kansas Heavy.otf</string>
+		<string>New Kansas Thin.otf</string>
+		<string>New Kansas Regular Italic.otf</string>
+		<string>New Kansas Medium Italic.otf</string>
+		<string>New Kansas Bold Italic.otf</string>
+		<string>New Kansas SemiBold Italic.otf</string>
+		<string>New Kansas Light Italic.otf</string>
+		<string>New Kansas Black Italic.otf</string>
+		<string>New Kansas Thin Italic.otf</string>
+	</array>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

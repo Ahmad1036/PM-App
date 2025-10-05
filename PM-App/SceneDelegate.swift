@@ -13,6 +13,14 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
 
 
     func scene(_ scene: UIScene, willConnectTo session: UISceneSession, options connectionOptions: UIScene.ConnectionOptions) {
+        // Show onboarding if first launch
+        if !UserDefaults.standard.bool(forKey: "hasSeenOnboarding") {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                let onboarding = OnboardingViewController()
+                onboarding.modalPresentationStyle = .fullScreen
+                self.window?.rootViewController?.present(onboarding, animated: true)
+            }
+        }
         guard let windowScene = (scene as? UIWindowScene) else { return }
 
                 let window = UIWindow(windowScene: windowScene)

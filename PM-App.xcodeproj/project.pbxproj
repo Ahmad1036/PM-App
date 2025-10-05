@@ -51,6 +51,11 @@
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
+		57526EE82E92C64100A70399 /* Fonts */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = Fonts;
+			sourceTree = "<group>";
+		};
 		575DB4012E913D6000220124 /* PM-App */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
@@ -134,6 +139,7 @@
 		575DB3F62E913D6000220124 = {
 			isa = PBXGroup;
 			children = (
+				57526EE82E92C64100A70399 /* Fonts */,
 				575DB4A82E9151DB00220124 /* Helpers */,
 				575DB49D2E91517400220124 /* ViewControllers */,
 				575DB48C2E914FB700220124 /* Models */,
@@ -180,6 +186,7 @@
 			dependencies = (
 			);
 			fileSystemSynchronizedGroups = (
+				57526EE82E92C64100A70399 /* Fonts */,
 				575DB4012E913D6000220124 /* PM-App */,
 				575DB48B2E914FAE00220124 /* Resources */,
 				575DB48C2E914FB700220124 /* Models */,

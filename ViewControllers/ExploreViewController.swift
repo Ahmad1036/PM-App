@@ -22,8 +22,20 @@ class ExploreViewController: UIViewController, UITableViewDelegate, UITableViewD
         super.viewDidLoad()
         title = "Explore Standards"
         navigationController?.navigationBar.prefersLargeTitles = true
-        view.backgroundColor = .systemBackground
+        view.backgroundColor = .pmBackground
         setupTableView()
+        
+        // Style navigation bar
+        if let navigationBar = navigationController?.navigationBar {
+            navigationBar.largeTitleTextAttributes = [
+                .font: Typography.largeTitle(),
+                .foregroundColor: UIColor.pmTextPrimary
+            ]
+            navigationBar.titleTextAttributes = [
+                .font: Typography.bodyMedium(),
+                .foregroundColor: UIColor.pmTextPrimary
+            ]
+        }
     }
     
     override func viewWillAppear(_ animated: Bool) {
@@ -87,6 +99,8 @@ class ExploreViewController: UIViewController, UITableViewDelegate, UITableViewD
             let standard = standards[indexPath.row]
             var content = cell.defaultContentConfiguration()
             content.text = standard.title
+            content.textProperties.font = Typography.bodyMedium()
+            content.textProperties.color = .pmTextPrimary
             content.image = UIImage(systemName: "book.closed")
             content.imageProperties.tintColor = .systemBlue
             cell.contentConfiguration = content
@@ -222,20 +236,22 @@ class BookmarkTableCell: UITableViewCell {
     private func setupUI() {
         // Icon
         iconImageView.image = UIImage(systemName: "bookmark.fill")
-        iconImageView.tintColor = .systemBlue
+        iconImageView.tintColor = .pmCoral
         iconImageView.contentMode = .scaleAspectFit
         
         // Book title (small, gray)
-        bookTitleLabel.font = .systemFont(ofSize: 12, weight: .medium)
-        bookTitleLabel.textColor = .secondaryLabel
+        bookTitleLabel.font = Typography.caption()
+        bookTitleLabel.textColor = .pmTextSecondary
         
         // Bookmark title
-        bookmarkTitleLabel.font = .systemFont(ofSize: 15)
+        bookmarkTitleLabel.font = Typography.body()
+        bookmarkTitleLabel.textColor = .pmTextPrimary
         bookmarkTitleLabel.numberOfLines = 2
         
         // Timestamp
-        timestampLabel.font = .systemFont(ofSize: 11)
-        timestampLabel.textColor = .tertiaryLabel
+        timestampLabel.font = Typography.caption()
+        timestampLabel.textColor = .pmTextSecondary
+        timestampLabel.alpha = 0.7
         
         // Stack views
         let textStack = UIStackView(arrangedSubviews: [bookTitleLabel, bookmarkTitleLabel, timestampLabel])

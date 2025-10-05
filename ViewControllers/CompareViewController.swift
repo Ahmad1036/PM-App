@@ -13,6 +13,9 @@ import ReadiumAdapterGCDWebServer
 class CompareViewController: UIViewController {
 
     // MARK: - UI Components
+    private let scrollView = UIScrollView()
+    private let contentView = UIView()
+    
     private let leftContainer = UIView()
     private let rightContainer = UIView()
     
@@ -29,11 +32,19 @@ class CompareViewController: UIViewController {
     private let rightNextButton = UIButton(type: .system)
     private let rightPageLabel = UILabel()
     
+    // Comparison section
+    private let compareButton = UIButton(type: .system)
+    private let comparisonSummaryView = ComparisonSummaryView()
+    
     // Reader data
     private var leftStandard: Standard?
     private var rightStandard: Standard?
     private var leftReaderVC: ReaderViewController?
     private var rightReaderVC: ReaderViewController?
+    
+    // Selected chapters for comparison
+    private var leftSelectedChapter: Link?
+    private var rightSelectedChapter: Link?
 
     // MARK: - Lifecycle
     
@@ -41,7 +52,19 @@ class CompareViewController: UIViewController {
         super.viewDidLoad()
         title = "Compare Standards"
         navigationController?.navigationBar.prefersLargeTitles = true
-        view.backgroundColor = .systemBackground
+        view.backgroundColor = .pmBackground
+        
+        // Style navigation bar
+        if let navigationBar = navigationController?.navigationBar {
+            navigationBar.largeTitleTextAttributes = [
+                .font: Typography.largeTitle(),
+                .foregroundColor: UIColor.pmTextPrimary
+            ]
+            navigationBar.titleTextAttributes = [
+                .font: Typography.bodyMedium(),
+                .foregroundColor: UIColor.pmTextPrimary
+            ]
+        }
         
         // Apply optimized settings for split view
         applySplitViewSettings()
@@ -82,21 +105,72 @@ class CompareViewController: UIViewController {
             side: .right
         )
         
-        // Main split view
+        // Main split view for readers
         let splitStack = UIStackView(arrangedSubviews: [leftStack, rightStack])
         splitStack.axis = .horizontal
         splitStack.distribution = .fillEqually
         splitStack.spacing = 1.0
         splitStack.backgroundColor = .systemGray4
         
+        // Big compare button at bottom with liquid glass effect (no green)
+        compareButton.setTitle("Compare Standards", for: .normal)
+        compareButton.titleLabel?.font = Typography.bodyMedium()
+        compareButton.setTitleColor(.pmBlack, for: .normal)
+        LiquidGlassStyle.applyToButton(compareButton, tintColor: .white.withAlphaComponent(0.25))
+        compareButton.addTarget(self, action: #selector(compareButtonTapped), for: .touchUpInside)
+        
+        // Hide comparison summary initially
+        comparisonSummaryView.isHidden = true
+        
         view.addSubview(splitStack)
+        view.addSubview(compareButton)
+        
         splitStack.translatesAutoresizingMaskIntoConstraints = false
+        compareButton.translatesAutoresizingMaskIntoConstraints = false
+        
         NSLayoutConstraint.activate([
             splitStack.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
             splitStack.leadingAnchor.constraint(equalTo: view.leadingAnchor),
             splitStack.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-            splitStack.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor)
+            splitStack.bottomAnchor.constraint(equalTo: compareButton.topAnchor, constant: -8),
+            
+            compareButton.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 16),
+            compareButton.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -16),
+            compareButton.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor, constant: -8),
+            compareButton.heightAnchor.constraint(equalToConstant: 56)
         ])
+    }
+    
+    @objc private func compareButtonTapped() {
+        // Show comparison summary in a modal sheet
+        let summaryVC = UIViewController()
+        summaryVC.view.backgroundColor = .pmBackground
+        
+        let summaryView = ComparisonSummaryView()
+        summaryVC.view.addSubview(summaryView)
+        summaryView.translatesAutoresizingMaskIntoConstraints = false
+        
+        NSLayoutConstraint.activate([
+            summaryView.topAnchor.constraint(equalTo: summaryVC.view.safeAreaLayoutGuide.topAnchor, constant: 20),
+            summaryView.leadingAnchor.constraint(equalTo: summaryVC.view.leadingAnchor, constant: 16),
+            summaryView.trailingAnchor.constraint(equalTo: summaryVC.view.trailingAnchor, constant: -16),
+            summaryView.bottomAnchor.constraint(lessThanOrEqualTo: summaryVC.view.safeAreaLayoutGuide.bottomAnchor, constant: -20)
+        ])
+        
+        let navController = UINavigationController(rootViewController: summaryVC)
+        navController.navigationBar.topItem?.title = "Comparison Results"
+        navController.navigationBar.topItem?.rightBarButtonItem = UIBarButtonItem(barButtonSystemItem: .done, target: self, action: #selector(dismissComparison))
+        
+        if let sheet = navController.sheetPresentationController {
+            sheet.detents = [.medium(), .large()]
+            sheet.prefersGrabberVisible = true
+        }
+        
+        present(navController, animated: true)
+    }
+    
+    @objc private func dismissComparison() {
+        dismiss(animated: true)
     }
     
     private func createSideView(
@@ -108,31 +182,44 @@ class CompareViewController: UIViewController {
         side: Side
     ) -> UIView {
         let containerView = UIView()
-        containerView.backgroundColor = .systemBackground
+        containerView.backgroundColor = .pmSurface
         
         // Header button for book selection
         headerButton.setTitle("Select Book", for: .normal)
-        headerButton.titleLabel?.font = .systemFont(ofSize: 14, weight: .semibold)
-        headerButton.backgroundColor = .systemGray6
-        headerButton.setTitleColor(.label, for: .normal)
+        headerButton.titleLabel?.font = Typography.body()
+        headerButton.backgroundColor = .pmSoftGray
+        headerButton.setTitleColor(.pmTextPrimary, for: .normal)
+        headerButton.layer.cornerRadius = 8
         headerButton.addTarget(self, action: side == .left ? #selector(selectLeftBook) : #selector(selectRightBook), for: .touchUpInside)
         
         // Navigation controls
-        prevButton.setImage(UIImage(systemName: "chevron.left"), for: .normal)
+        prevButton.setImage(UIImage(systemName: "chevron.left.circle.fill"), for: .normal)
+        prevButton.tintColor = .systemBlue
         prevButton.addTarget(self, action: side == .left ? #selector(leftPrevPage) : #selector(rightPrevPage), for: .touchUpInside)
         
-        nextButton.setImage(UIImage(systemName: "chevron.right"), for: .normal)
+        nextButton.setImage(UIImage(systemName: "chevron.right.circle.fill"), for: .normal)
+        nextButton.tintColor = .systemBlue
         nextButton.addTarget(self, action: side == .left ? #selector(leftNextPage) : #selector(rightNextPage), for: .touchUpInside)
         
-        pageLabel.text = "Page -/-"
-        pageLabel.font = .systemFont(ofSize: 11)
-        pageLabel.textAlignment = .center
+        // TOC button for jumping to chapters
+        let tocButton = UIButton(type: .system)
+        tocButton.setImage(UIImage(systemName: "list.bullet.circle.fill"), for: .normal)
+        tocButton.tintColor = .systemPurple
+        tocButton.addTarget(self, action: side == .left ? #selector(showLeftTOC) : #selector(showRightTOC), for: .touchUpInside)
         
-        let navStack = UIStackView(arrangedSubviews: [prevButton, pageLabel, nextButton])
+        pageLabel.text = "Ready"
+        pageLabel.font = Typography.caption()
+        pageLabel.textAlignment = .center
+        pageLabel.textColor = .pmTextSecondary
+        
+        let navStack = UIStackView(arrangedSubviews: [prevButton, tocButton, pageLabel, nextButton])
         navStack.axis = .horizontal
-        navStack.spacing = 8
+        navStack.spacing = 6
         navStack.distribution = .fill
         pageLabel.setContentHuggingPriority(.defaultLow, for: .horizontal)
+        prevButton.setContentHuggingPriority(.required, for: .horizontal)
+        nextButton.setContentHuggingPriority(.required, for: .horizontal)
+        tocButton.setContentHuggingPriority(.required, for: .horizontal)
         
         // Reader container
         container.backgroundColor = .secondarySystemBackground
@@ -278,6 +365,51 @@ class CompareViewController: UIViewController {
         showBookSelector(for: .right)
     }
     
+    @objc private func showLeftTOC() {
+        guard let readerVC = leftReaderVC else { return }
+        showTOC(for: readerVC, side: .left)
+    }
+    
+    @objc private func showRightTOC() {
+        guard let readerVC = rightReaderVC else { return }
+        showTOC(for: readerVC, side: .right)
+    }
+    
+    private func showTOC(for readerVC: ReaderViewController, side: Side) {
+        guard let publication = readerVC.epubNavigator?.publication else { return }
+        
+        let tocVC = TOCViewController(publication: publication)
+        tocVC.onSelectChapter = { [weak self] link in
+            self?.navigateToChapter(link, in: side)
+        }
+        
+        let navController = UINavigationController(rootViewController: tocVC)
+        if let sheet = navController.sheetPresentationController {
+            sheet.detents = [.medium(), .large()]
+            sheet.prefersGrabberVisible = true
+        }
+        present(navController, animated: true)
+    }
+    
+    private func navigateToChapter(_ link: Link, in side: Side) {
+        Task {
+            guard let anyURL = AnyURL(string: link.href) else { return }
+            let locator = Locator(
+                href: anyURL,
+                mediaType: link.mediaType ?? MediaType.html,
+                title: link.title
+            )
+            
+            let navigator = side == .left ? leftReaderVC?.epubNavigator : rightReaderVC?.epubNavigator
+            await navigator?.go(to: locator)
+            
+            await MainActor.run {
+                let label = side == .left ? leftPageLabel : rightPageLabel
+                label.text = link.title ?? "Chapter"
+            }
+        }
+    }
+    
     private func showBookSelector(for side: Side) {
         let alert = UIAlertController(title: "Select Book", message: nil, preferredStyle: .actionSheet)
         
@@ -299,50 +431,94 @@ class CompareViewController: UIViewController {
     
     @objc private func leftPrevPage() {
         print("Compare: Left prev button tapped")
-        guard let navigator = leftReaderVC?.epubNavigator else {
-            print("Compare: Left navigator not available")
-            return
-        }
         Task {
+            guard let navigator = leftReaderVC?.epubNavigator else {
+                print("Compare: Left navigator not available")
+                await MainActor.run {
+                    showNavigationError(for: .left)
+                }
+                return
+            }
             let result = await navigator.goBackward()
             print("Compare: Left goBackward result: \(result)")
+            await updatePageLabel(for: .left)
         }
     }
     
     @objc private func leftNextPage() {
         print("Compare: Left next button tapped")
-        guard let navigator = leftReaderVC?.epubNavigator else {
-            print("Compare: Left navigator not available")
-            return
-        }
         Task {
+            guard let navigator = leftReaderVC?.epubNavigator else {
+                print("Compare: Left navigator not available")
+                await MainActor.run {
+                    showNavigationError(for: .left)
+                }
+                return
+            }
             let result = await navigator.goForward()
             print("Compare: Left goForward result: \(result)")
+            await updatePageLabel(for: .left)
         }
     }
     
     @objc private func rightPrevPage() {
         print("Compare: Right prev button tapped")
-        guard let navigator = rightReaderVC?.epubNavigator else {
-            print("Compare: Right navigator not available")
-            return
-        }
         Task {
+            guard let navigator = rightReaderVC?.epubNavigator else {
+                print("Compare: Right navigator not available")
+                await MainActor.run {
+                    showNavigationError(for: .right)
+                }
+                return
+            }
             let result = await navigator.goBackward()
             print("Compare: Right goBackward result: \(result)")
+            await updatePageLabel(for: .right)
         }
     }
     
     @objc private func rightNextPage() {
         print("Compare: Right next button tapped")
-        guard let navigator = rightReaderVC?.epubNavigator else {
-            print("Compare: Right navigator not available")
-            return
-        }
         Task {
+            guard let navigator = rightReaderVC?.epubNavigator else {
+                print("Compare: Right navigator not available")
+                await MainActor.run {
+                    showNavigationError(for: .right)
+                }
+                return
+            }
             let result = await navigator.goForward()
             print("Compare: Right goForward result: \(result)")
+            await updatePageLabel(for: .right)
         }
+    }
+    
+    // MARK: - Helper Methods
+    
+    private func updatePageLabel(for side: Side) async {
+        await MainActor.run {
+            let label = side == .left ? leftPageLabel : rightPageLabel
+            label.text = "📄"
+            
+            // Briefly flash the label to show it updated
+            UIView.animate(withDuration: 0.15) {
+                label.transform = CGAffineTransform(scaleX: 1.3, y: 1.3)
+            } completion: { _ in
+                UIView.animate(withDuration: 0.15) {
+                    label.transform = .identity
+                }
+            }
+        }
+    }
+    
+    private func showNavigationError(for side: Side) {
+        let alert = UIAlertController(
+            title: "Navigation Error",
+            message: "Please wait for the \(side == .left ? "left" : "right") reader to fully load.",
+            preferredStyle: .alert
+        )
+        alert.addAction(UIAlertAction(title: "OK", style: .default))
+        present(alert, animated: true)
     }
     
     // MARK: - Helper Types

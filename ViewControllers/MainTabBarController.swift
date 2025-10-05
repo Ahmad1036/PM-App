@@ -10,6 +10,9 @@ class MainTabBarController: UITabBarController {
 
     override func viewDidLoad() {
         super.viewDidLoad()
+        view.backgroundColor = .pmBackground // Use mint background
+        tabBar.tintColor = .pmMint
+        tabBar.unselectedItemTintColor = .pmTextSecondary
         view.backgroundColor = .systemBackground
         configureTabBarAppearance()
         setupTabs()

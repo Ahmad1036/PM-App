@@ -68,7 +68,7 @@ class ReaderViewController: UIViewController {
     
     override func viewDidLoad() {
         super.viewDidLoad()
-        view.backgroundColor = .systemBackground
+        view.backgroundColor = .pmBackground
         speechSynthesizer.delegate = self
         setupAudioSession()
         setupNavigator()
@@ -155,9 +155,9 @@ class ReaderViewController: UIViewController {
     }
     
     private func setupToolbar() {
-        toolbar.backgroundColor = .systemBackground
+        toolbar.backgroundColor = .pmSurface
         toolbar.layer.shadowColor = UIColor.black.cgColor
-        toolbar.layer.shadowOpacity = 0.1
+        toolbar.layer.shadowOpacity = 0.08
         toolbar.layer.shadowOffset = CGSize(width: 0, height: 2)
         view.addSubview(toolbar)
         toolbar.translatesAutoresizingMaskIntoConstraints = false
@@ -174,7 +174,8 @@ class ReaderViewController: UIViewController {
         closeButton.addTarget(self, action: #selector(closeTapped), for: .touchUpInside)
         
         titleLabel.text = publication.metadata.title ?? "Reader"
-        titleLabel.font = .systemFont(ofSize: isEmbeddedMode ? 14 : 17, weight: .semibold)
+        titleLabel.font = isEmbeddedMode ? Typography.body() : Typography.bodyMedium()
+        titleLabel.textColor = .pmTextPrimary
         titleLabel.textAlignment = .center
         
         tocButton.setImage(UIImage(systemName: "list.bullet"), for: .normal)
@@ -239,9 +240,9 @@ class ReaderViewController: UIViewController {
     }
     
     private func setupBottomBar() {
-        bottomBar.backgroundColor = .systemBackground
+        bottomBar.backgroundColor = .pmSurface
         bottomBar.layer.shadowColor = UIColor.black.cgColor
-        bottomBar.layer.shadowOpacity = 0.1
+        bottomBar.layer.shadowOpacity = 0.08
         bottomBar.layer.shadowOffset = CGSize(width: 0, height: -2)
         view.addSubview(bottomBar)
         bottomBar.translatesAutoresizingMaskIntoConstraints = false
@@ -263,7 +264,8 @@ class ReaderViewController: UIViewController {
         pageSlider.addTarget(self, action: #selector(sliderChanged), for: .valueChanged)
         
         pageLabel.text = "Location 1 of \(totalLocations)"
-        pageLabel.font = .systemFont(ofSize: 12)
+        pageLabel.font = Typography.caption()
+        pageLabel.textColor = .pmTextSecondary
         pageLabel.textAlignment = .center
         
         [prevButton, pageSlider, pageLabel, nextButton].forEach {
@@ -285,10 +287,19 @@ class ReaderViewController: UIViewController {
     }
     
     private func setupTTSButton() {
+        // Hide TTS button in embedded mode (like Compare view)
+        if isEmbeddedMode {
+            ttsButton.isHidden = true
+            return
+        }
+        
         ttsButton.setImage(UIImage(systemName: "play.circle.fill"), for: .normal)
-        ttsButton.backgroundColor = .systemBlue
-        ttsButton.tintColor = .white
+        ttsButton.tintColor = .pmBlack
         ttsButton.layer.cornerRadius = 28
+        
+        // Apply liquid glass effect to TTS button (no green)
+        LiquidGlassStyle.applyToButton(ttsButton, tintColor: .white.withAlphaComponent(0.2))
+        
         ttsButton.addTarget(self, action: #selector(ttsTapped), for: .touchUpInside)
         view.addSubview(ttsButton)
         ttsButton.translatesAutoresizingMaskIntoConstraints = false

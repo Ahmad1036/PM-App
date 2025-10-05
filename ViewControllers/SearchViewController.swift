@@ -150,9 +150,9 @@ class SearchViewController: UIViewController {
                         
                         // Create snippet around the match
                         let contextLength = 60
-                        let snippetStart = max(plainText.startIndex, 
+                        let snippetStart = max(plainText.startIndex,
                                               plainText.index(range.lowerBound, offsetBy: -contextLength, limitedBy: plainText.startIndex) ?? plainText.startIndex)
-                        let snippetEnd = min(plainText.endIndex, 
+                        let snippetEnd = min(plainText.endIndex,
                                             plainText.index(range.upperBound, offsetBy: contextLength, limitedBy: plainText.endIndex) ?? plainText.endIndex)
                         let snippetText = String(plainText[snippetStart..<snippetEnd]).trimmingCharacters(in: .whitespacesAndNewlines)
                         let snippet = "..." + snippetText + "..."

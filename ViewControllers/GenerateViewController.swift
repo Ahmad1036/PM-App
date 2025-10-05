@@ -39,38 +39,102 @@ class GenerateViewController: UIViewController {
     private let generateButton: UIButton = {
         let button = UIButton(type: .system)
         button.setTitle("Generate Process", for: .normal)
-        button.titleLabel?.font = .boldSystemFont(ofSize: 18)
-        button.backgroundColor = .systemBlue
-        button.setTitleColor(.white, for: .normal)
-        button.layer.cornerRadius = 8
+        button.titleLabel?.font = Typography.bodyMedium()
+        button.setTitleColor(.pmBlack, for: .normal)
         button.addTarget(self, action: #selector(generateButtonTapped), for: .touchUpInside)
         return button
+    }()
+    
+    private let resultContainerView: UIView = {
+        let view = UIView()
+        view.backgroundColor = .pmSurface
+        view.layer.cornerRadius = CornerRadius.card
+        view.layer.shadowColor = UIColor.black.cgColor
+        view.layer.shadowOffset = CGSize(width: 0, height: 2)
+        view.layer.shadowRadius = 8
+        view.layer.shadowOpacity = 0.06
+        view.isHidden = true
+        return view
     }()
     
     private let resultTextView: UITextView = {
         let textView = UITextView()
         textView.isEditable = false
-        textView.font = .monospacedSystemFont(ofSize: 15, weight: .regular)
-        textView.layer.borderColor = UIColor.systemGray4.cgColor
-        textView.layer.borderWidth = 1
-        textView.layer.cornerRadius = 8
-        textView.text = "Your generated process summary will appear here..."
-        textView.textContainerInset = UIEdgeInsets(top: 10, left: 10, bottom: 10, right: 10)
+        textView.font = Typography.body()
+        textView.textColor = .pmTextPrimary
+        textView.backgroundColor = .clear
+        textView.text = ""
+        textView.textContainerInset = UIEdgeInsets(top: 16, left: 16, bottom: 16, right: 16)
         return textView
+    }()
+    
+    private let actionButtonsStack: UIStackView = {
+        let stack = UIStackView()
+        stack.axis = .horizontal
+        stack.distribution = .fillEqually
+        stack.spacing = 12
+        return stack
+    }()
+    
+    private lazy var modifyButton: UIButton = {
+        let button = UIButton(type: .system)
+        button.setTitle("Modify Inputs", for: .normal)
+        button.titleLabel?.font = Typography.body()
+        button.setTitleColor(.pmBlack, for: .normal)
+        button.addTarget(self, action: #selector(modifyInputsTapped), for: .touchUpInside)
+        return button
+    }()
+    
+    private lazy var regenerateButton: UIButton = {
+        let button = UIButton(type: .system)
+        button.setTitle("Regenerate", for: .normal)
+        button.titleLabel?.font = Typography.body()
+        button.setTitleColor(.pmBlack, for: .normal)
+        button.addTarget(self, action: #selector(regenerateButtonTapped), for: .touchUpInside)
+        return button
+    }()
+    
+    private lazy var shareButton: UIButton = {
+        let button = UIButton(type: .system)
+        button.setTitle("Share", for: .normal)
+        button.titleLabel?.font = Typography.body()
+        button.setTitleColor(.pmBlack, for: .normal)
+        button.addTarget(self, action: #selector(shareButtonTapped), for: .touchUpInside)
+        return button
     }()
     
     // MARK: - Data
     private let projectTypes = ProcessGenerator.ProjectType.allCases
     private let projectScales = ProcessGenerator.ProjectScale.allCases
     private let standards = StandardsData.allStandards
+    private var hasGenerated = false
 
     // MARK: - Lifecycle
     override func viewDidLoad() {
         super.viewDidLoad()
         title = "Process Generator"
         navigationController?.navigationBar.prefersLargeTitles = true
-        view.backgroundColor = .systemBackground
+        view.backgroundColor = .pmBackground
+        
+        // Style navigation bar
+        if let navigationBar = navigationController?.navigationBar {
+            navigationBar.largeTitleTextAttributes = [
+                .font: Typography.largeTitle(),
+                .foregroundColor: UIColor.pmTextPrimary
+            ]
+            navigationBar.titleTextAttributes = [
+                .font: Typography.bodyMedium(),
+                .foregroundColor: UIColor.pmTextPrimary
+            ]
+        }
+        
         setupUI()
+        
+        // Apply liquid glass to buttons after setup (no green)
+        LiquidGlassStyle.applyToButton(generateButton, tintColor: .white.withAlphaComponent(0.25))
+        LiquidGlassStyle.applyToButton(modifyButton, tintColor: .pmCoral.withAlphaComponent(0.12))
+        LiquidGlassStyle.applyToButton(regenerateButton, tintColor: .white.withAlphaComponent(0.2))
+        LiquidGlassStyle.applyToButton(shareButton, tintColor: .systemPurple.withAlphaComponent(0.15))
     }
 
     // MARK: - UI Setup
@@ -106,7 +170,19 @@ class GenerateViewController: UIViewController {
         stackView.addArrangedSubview(createSection(title: "Project Scale", picker: projectScalePicker))
         stackView.addArrangedSubview(createSection(title: "Preferred Standard", picker: standardPicker))
         stackView.addArrangedSubview(generateButton)
-        stackView.addArrangedSubview(resultTextView)
+        stackView.addArrangedSubview(resultContainerView)
+        
+        // Setup result container
+        resultContainerView.addSubview(resultTextView)
+        resultContainerView.addSubview(actionButtonsStack)
+        
+        resultTextView.translatesAutoresizingMaskIntoConstraints = false
+        actionButtonsStack.translatesAutoresizingMaskIntoConstraints = false
+        
+        // Add action buttons to stack
+        actionButtonsStack.addArrangedSubview(modifyButton)
+        actionButtonsStack.addArrangedSubview(regenerateButton)
+        actionButtonsStack.addArrangedSubview(shareButton)
 
         // Layout
         NSLayoutConstraint.activate([
@@ -116,7 +192,18 @@ class GenerateViewController: UIViewController {
             stackView.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -20),
             
             generateButton.heightAnchor.constraint(equalToConstant: 50),
-            resultTextView.heightAnchor.constraint(equalToConstant: 300)
+            resultContainerView.heightAnchor.constraint(greaterThanOrEqualToConstant: 400),
+            
+            // Result container layout
+            resultTextView.topAnchor.constraint(equalTo: resultContainerView.topAnchor, constant: 12),
+            resultTextView.leadingAnchor.constraint(equalTo: resultContainerView.leadingAnchor),
+            resultTextView.trailingAnchor.constraint(equalTo: resultContainerView.trailingAnchor),
+            resultTextView.bottomAnchor.constraint(equalTo: actionButtonsStack.topAnchor, constant: -12),
+            
+            actionButtonsStack.leadingAnchor.constraint(equalTo: resultContainerView.leadingAnchor, constant: 16),
+            actionButtonsStack.trailingAnchor.constraint(equalTo: resultContainerView.trailingAnchor, constant: -16),
+            actionButtonsStack.bottomAnchor.constraint(equalTo: resultContainerView.bottomAnchor, constant: -16),
+            actionButtonsStack.heightAnchor.constraint(equalToConstant: 44)
         ])
     }
     
@@ -135,15 +222,87 @@ class GenerateViewController: UIViewController {
 
     // MARK: - Actions
     @objc private func generateButtonTapped() {
+        generateProcess()
+    }
+    
+    @objc private func regenerateButtonTapped() {
+        // Add a subtle animation
+        UIView.transition(with: resultTextView,
+                         duration: 0.3,
+                         options: .transitionCrossDissolve,
+                         animations: {
+            self.generateProcess()
+        })
+    }
+    
+    @objc private func modifyInputsTapped() {
+        // Scroll to top to show pickers
+        scrollView.setContentOffset(.zero, animated: true)
+        
+        // Optional: hide result temporarily
+        UIView.animate(withDuration: 0.3) {
+            self.resultContainerView.alpha = 0.5
+        } completion: { _ in
+            UIView.animate(withDuration: 0.3) {
+                self.resultContainerView.alpha = 1.0
+            }
+        }
+    }
+    
+    @objc private func shareButtonTapped() {
+        guard hasGenerated, !resultTextView.text.isEmpty else { return }
+        
+        let textToShare = resultTextView.text ?? ""
+        let activityVC = UIActivityViewController(
+            activityItems: [textToShare],
+            applicationActivities: nil
+        )
+        
+        // For iPad support
+        if let popover = activityVC.popoverPresentationController {
+            popover.sourceView = shareButton
+            popover.sourceRect = shareButton.bounds
+        }
+        
+        present(activityVC, animated: true)
+    }
+    
+    // MARK: - Helper Methods
+    
+    private func generateProcess() {
         let selectedType = projectTypes[projectTypePicker.selectedRow(inComponent: 0)]
         let selectedScale = projectScales[projectScalePicker.selectedRow(inComponent: 0)]
         let selectedStandard = standards[standardPicker.selectedRow(inComponent: 0)]
         
-        resultTextView.text = ProcessGenerator.generate(
+        let generatedText = ProcessGenerator.generate(
             type: selectedType,
             scale: selectedScale,
             standard: selectedStandard
         )
+        
+        resultTextView.text = generatedText
+        
+        // Show result container if first generation
+        if !hasGenerated {
+            resultContainerView.isHidden = false
+            hasGenerated = true
+            
+            // Animate appearance
+            resultContainerView.alpha = 0
+            resultContainerView.transform = CGAffineTransform(scaleX: 0.95, y: 0.95)
+            
+            UIView.animate(withDuration: 0.4, delay: 0, usingSpringWithDamping: 0.8, initialSpringVelocity: 0.5, options: .curveEaseOut) {
+                self.resultContainerView.alpha = 1.0
+                self.resultContainerView.transform = .identity
+            }
+            
+            // Scroll to show result
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                let resultFrame = self.resultContainerView.frame
+                let scrollOffset = CGPoint(x: 0, y: resultFrame.origin.y - 20)
+                self.scrollView.setContentOffset(scrollOffset, animated: true)
+            }
+        }
     }
 }
 

@@ -29,7 +29,7 @@ class TOCViewController: UIViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
         title = "Table of Contents"
-        view.backgroundColor = .systemBackground
+        view.backgroundColor = .pmBackground
         
         navigationItem.rightBarButtonItem = UIBarButtonItem(
             barButtonSystemItem: .done,
@@ -89,12 +89,16 @@ extension TOCViewController: UITableViewDataSource, UITableViewDelegate {
         
         if isLoading {
             cell.textLabel?.text = "Loading..."
+            cell.textLabel?.font = Typography.body()
+            cell.textLabel?.textColor = .pmTextSecondary
             cell.textLabel?.textAlignment = .center
             cell.accessoryType = .none
             cell.selectionStyle = .none
         } else {
             let item = tocItems[indexPath.row]
             cell.textLabel?.text = item.title ?? "Chapter \(indexPath.row + 1)"
+            cell.textLabel?.font = Typography.body()
+            cell.textLabel?.textColor = .pmTextPrimary
             cell.textLabel?.textAlignment = .left
             cell.textLabel?.numberOfLines = 0
             cell.accessoryType = .disclosureIndicator
