@@ -20,6 +20,11 @@ class ReaderViewController: UIViewController {
     private let httpServer: HTTPServer
     private var navigator: EPUBNavigatorViewController?
     
+    // Public accessor for compare view
+    var epubNavigator: EPUBNavigatorViewController? {
+        return navigator
+    }
+    
     private var currentLocator: Locator?
     private var totalLocations: Int = 0
     
@@ -178,7 +183,7 @@ class ReaderViewController: UIViewController {
         searchButton.setImage(UIImage(systemName: "magnifyingglass"), for: .normal)
         searchButton.addTarget(self, action: #selector(searchTapped), for: .touchUpInside)
         
-        bookmarkButton.setImage(UIImage(systemName: "star"), for: .normal)
+        bookmarkButton.setImage(UIImage(systemName: "bookmark"), for: .normal)
         bookmarkButton.addTarget(self, action: #selector(bookmarkTapped), for: .touchUpInside)
         
         moreButton.setImage(UIImage(systemName: "ellipsis.circle"), for: .normal)
@@ -470,12 +475,12 @@ class ReaderViewController: UIViewController {
     
     private func updateBookmarkButton() {
         guard let locator = currentLocator else {
-            bookmarkButton.setImage(UIImage(systemName: "star"), for: .normal)
+            bookmarkButton.setImage(UIImage(systemName: "bookmark"), for: .normal)
             return
         }
         let bookmarkId = locator.href.string + (locator.locations.position?.description ?? "")
         let isBookmarked = ReaderPersistence.shared.listBookmarks(for: publicationFileName).contains { $0.id == bookmarkId }
-        bookmarkButton.setImage(UIImage(systemName: isBookmarked ? "star.fill" : "star"), for: .normal)
+        bookmarkButton.setImage(UIImage(systemName: isBookmarked ? "bookmark.fill" : "bookmark"), for: .normal)
     }
     
     private func updatePageLabel() {

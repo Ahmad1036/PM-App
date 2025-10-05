@@ -11,7 +11,45 @@ class MainTabBarController: UITabBarController {
     override func viewDidLoad() {
         super.viewDidLoad()
         view.backgroundColor = .systemBackground
+        configureTabBarAppearance()
         setupTabs()
+    }
+    
+    override func viewWillLayoutSubviews() {
+        super.viewWillLayoutSubviews()
+        // Force tab bar to use correct layout on first appearance
+        tabBar.invalidateIntrinsicContentSize()
+    }
+    
+    private func configureTabBarAppearance() {
+        // Configure tab bar appearance before adding items
+        let appearance = UITabBarAppearance()
+        appearance.configureWithDefaultBackground()
+        appearance.backgroundColor = .systemBackground
+        
+        // Configure selected item appearance
+        let selectedAttributes: [NSAttributedString.Key: Any] = [
+            .foregroundColor: UIColor.systemBlue
+        ]
+        appearance.stackedLayoutAppearance.selected.iconColor = .systemBlue
+        appearance.stackedLayoutAppearance.selected.titleTextAttributes = selectedAttributes
+        
+        // Configure normal item appearance
+        let normalAttributes: [NSAttributedString.Key: Any] = [
+            .foregroundColor: UIColor.systemGray2
+        ]
+        appearance.stackedLayoutAppearance.normal.iconColor = .systemGray2
+        appearance.stackedLayoutAppearance.normal.titleTextAttributes = normalAttributes
+        
+        // Apply appearance
+        tabBar.standardAppearance = appearance
+        if #available(iOS 15.0, *) {
+            tabBar.scrollEdgeAppearance = appearance
+        }
+        
+        // Set tint colors
+        tabBar.tintColor = .systemBlue
+        tabBar.unselectedItemTintColor = .systemGray2
     }
 
     private func setupTabs() {
@@ -37,8 +75,8 @@ class MainTabBarController: UITabBarController {
         // 5. Set initial selected tab
         selectedIndex = 0
         
-        // 6. Style the tab bar for a clean, academic look
-        tabBar.tintColor = .systemBlue
-        tabBar.unselectedItemTintColor = .systemGray2
+        // 6. Force immediate layout
+        view.setNeedsLayout()
+        view.layoutIfNeeded()
     }
 }

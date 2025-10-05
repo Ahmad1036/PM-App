@@ -50,6 +50,21 @@ class RediumHelper {
         }
     }
     
+    /// Opens reader and navigates to a specific location
+    func openReaderAndNavigate(for standard: Standard, from viewController: UIViewController, toHref href: String, title: String?) {
+        Task {
+            if let publication = await loadPublication(for: standard, from: viewController) {
+                await presentReaderUIAndNavigate(
+                    publication: publication,
+                    publicationFileName: standard.fileName,
+                    from: viewController,
+                    toHref: href,
+                    title: title
+                )
+            }
+        }
+    }
+    
     /// Presents the enhanced reader UI with toolbar and controls
     func presentReaderUI(publication: Publication, publicationFileName: String, from viewController: UIViewController) async {
         await MainActor.run {
@@ -61,6 +76,34 @@ class RediumHelper {
             )
             readerVC.modalPresentationStyle = .fullScreen
             viewController.present(readerVC, animated: true)
+        }
+    }
+    
+    /// Presents reader UI and navigates to a specific location
+    private func presentReaderUIAndNavigate(publication: Publication, publicationFileName: String, from viewController: UIViewController, toHref href: String, title: String?) async {
+        await MainActor.run {
+            let readerVC = ReaderViewController(
+                publication: publication,
+                publicationFileName: publicationFileName,
+                httpServer: self.httpServer,
+                isEmbedded: false
+            )
+            readerVC.modalPresentationStyle = .fullScreen
+            viewController.present(readerVC, animated: true)
+            
+            // Navigate after presentation
+            Task {
+                // Wait for view to load
+                try? await Task.sleep(nanoseconds: 500_000_000) // 500ms
+                
+                guard let anyURL = AnyURL(string: href) else { return }
+                let locator = Locator(
+                    href: anyURL,
+                    mediaType: MediaType.html,
+                    title: title
+                )
+                await readerVC.epubNavigator?.go(to: locator)
+            }
         }
     }
     
