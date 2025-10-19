@@ -17,7 +17,7 @@ class RediumHelper {
     private let httpClient: HTTPClient
     private let assetRetriever: AssetRetriever
     private let publicationOpener: PublicationOpener
-    private let httpServer: HTTPServer
+    let httpServer: HTTPServer
     
     private init() {
         // Initialize HTTP client
@@ -108,7 +108,7 @@ class RediumHelper {
     }
     
     /// Loads publication from standard
-    private func loadPublication(for standard: Standard, from viewController: UIViewController) async -> Publication? {
+    func loadPublication(for standard: Standard, from viewController: UIViewController) async -> Publication? {
         guard let bookPath = Bundle.main.path(forResource: standard.fileName, ofType: "epub") else {
             await MainActor.run {
                 self.showError(

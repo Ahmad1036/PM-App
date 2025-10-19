@@ -81,7 +81,6 @@ class ReaderViewController: UIViewController {
             let audioSession = AVAudioSession.sharedInstance()
             try audioSession.setCategory(.playback, mode: .spokenAudio, options: [.duckOthers])
             try audioSession.setActive(true)
-            print("TTS: Audio session configured successfully")
         } catch {
             print("TTS: Failed to setup audio session: \(error)")
         }
@@ -114,7 +113,6 @@ class ReaderViewController: UIViewController {
             view.insertSubview(navigator.view, at: 0) // Insert behind toolbar/bottombar
             navigator.view.translatesAutoresizingMaskIntoConstraints = false
             
-            // Will update constraints after toolbar/bottombar are created
             navigator.didMove(toParent: self)
             
             let tapGesture = UITapGestureRecognizer(target: self, action: #selector(handleTap))
@@ -122,8 +120,7 @@ class ReaderViewController: UIViewController {
             navigator.view.addGestureRecognizer(tapGesture)
             
             Task {
-                let positionsResult = await publication.positions()
-                if case .success(let positions) = positionsResult {
+                if case .success(let positions) = await publication.positions() {
                     await MainActor.run {
                         self.totalLocations = positions.count
                         self.pageSlider.maximumValue = Float(max(0, self.totalLocations - 1))
@@ -143,22 +140,27 @@ class ReaderViewController: UIViewController {
         }
         setupTTSButton()
         
-        // Now constrain navigator view properly
         if let navigatorView = navigator?.view {
             NSLayoutConstraint.activate([
-                navigatorView.topAnchor.constraint(equalTo: toolbar.bottomAnchor),
-                navigatorView.bottomAnchor.constraint(equalTo: isEmbeddedMode ? view.bottomAnchor : bottomBar.topAnchor),
+                navigatorView.topAnchor.constraint(equalTo: view.topAnchor),
+                navigatorView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
                 navigatorView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
                 navigatorView.trailingAnchor.constraint(equalTo: view.trailingAnchor)
             ])
+            view.bringSubviewToFront(toolbar)
+            if !isEmbeddedMode {
+                view.bringSubviewToFront(bottomBar)
+            }
+            view.bringSubviewToFront(ttsButton)
         }
     }
     
     private func setupToolbar() {
-        toolbar.backgroundColor = .pmSurface
-        toolbar.layer.shadowColor = UIColor.black.cgColor
-        toolbar.layer.shadowOpacity = 0.08
-        toolbar.layer.shadowOffset = CGSize(width: 0, height: 2)
+        let blurEffect = UIBlurEffect(style: .systemThickMaterial)
+        let toolbarBackground = UIVisualEffectView(effect: blurEffect)
+        toolbar.addSubview(toolbarBackground)
+        toolbarBackground.translatesAutoresizingMaskIntoConstraints = false
+        
         view.addSubview(toolbar)
         toolbar.translatesAutoresizingMaskIntoConstraints = false
         
@@ -167,7 +169,12 @@ class ReaderViewController: UIViewController {
             toolbar.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
             toolbar.leadingAnchor.constraint(equalTo: view.leadingAnchor),
             toolbar.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-            toolbar.heightAnchor.constraint(equalToConstant: height)
+            toolbar.heightAnchor.constraint(equalToConstant: height),
+            
+            toolbarBackground.topAnchor.constraint(equalTo: toolbar.topAnchor),
+            toolbarBackground.bottomAnchor.constraint(equalTo: toolbar.bottomAnchor),
+            toolbarBackground.leadingAnchor.constraint(equalTo: toolbar.leadingAnchor),
+            toolbarBackground.trailingAnchor.constraint(equalTo: toolbar.trailingAnchor),
         ])
         
         closeButton.setImage(UIImage(systemName: "xmark"), for: .normal)
@@ -196,54 +203,49 @@ class ReaderViewController: UIViewController {
         }
         
         if isEmbeddedMode {
-            closeButton.isHidden = true
-            tocButton.isHidden = true
-            searchButton.isHidden = true
-            bookmarkButton.isHidden = true
-            
-            NSLayoutConstraint.activate([
-                titleLabel.leadingAnchor.constraint(equalTo: toolbar.leadingAnchor, constant: 16),
-                titleLabel.centerYAnchor.constraint(equalTo: toolbar.centerYAnchor),
-                titleLabel.trailingAnchor.constraint(equalTo: moreButton.leadingAnchor, constant: -8),
-                moreButton.trailingAnchor.constraint(equalTo: toolbar.trailingAnchor, constant: -8),
-                moreButton.centerYAnchor.constraint(equalTo: toolbar.centerYAnchor),
-                moreButton.widthAnchor.constraint(equalToConstant: 44),
-                moreButton.heightAnchor.constraint(equalToConstant: 44)
-            ])
+            // In embedded mode, UI is controlled by parent (CompareViewController)
+            toolbar.isHidden = true
         } else {
             NSLayoutConstraint.activate([
                 closeButton.leadingAnchor.constraint(equalTo: toolbar.leadingAnchor, constant: 8),
                 closeButton.centerYAnchor.constraint(equalTo: toolbar.centerYAnchor),
                 closeButton.widthAnchor.constraint(equalToConstant: 44),
                 closeButton.heightAnchor.constraint(equalToConstant: 44),
-                tocButton.leadingAnchor.constraint(equalTo: closeButton.trailingAnchor, constant: 4),
-                tocButton.centerYAnchor.constraint(equalTo: toolbar.centerYAnchor),
-                tocButton.widthAnchor.constraint(equalToConstant: 44),
-                tocButton.heightAnchor.constraint(equalToConstant: 44),
-                titleLabel.leadingAnchor.constraint(equalTo: tocButton.trailingAnchor, constant: 8),
+                
+                titleLabel.centerXAnchor.constraint(equalTo: toolbar.centerXAnchor),
                 titleLabel.centerYAnchor.constraint(equalTo: toolbar.centerYAnchor),
+                titleLabel.leadingAnchor.constraint(greaterThanOrEqualTo: closeButton.trailingAnchor, constant: 8),
                 titleLabel.trailingAnchor.constraint(lessThanOrEqualTo: searchButton.leadingAnchor, constant: -8),
+
                 moreButton.trailingAnchor.constraint(equalTo: toolbar.trailingAnchor, constant: -8),
                 moreButton.centerYAnchor.constraint(equalTo: toolbar.centerYAnchor),
                 moreButton.widthAnchor.constraint(equalToConstant: 44),
                 moreButton.heightAnchor.constraint(equalToConstant: 44),
+                
                 bookmarkButton.trailingAnchor.constraint(equalTo: moreButton.leadingAnchor, constant: -4),
                 bookmarkButton.centerYAnchor.constraint(equalTo: toolbar.centerYAnchor),
                 bookmarkButton.widthAnchor.constraint(equalToConstant: 44),
                 bookmarkButton.heightAnchor.constraint(equalToConstant: 44),
+                
                 searchButton.trailingAnchor.constraint(equalTo: bookmarkButton.leadingAnchor, constant: -4),
                 searchButton.centerYAnchor.constraint(equalTo: toolbar.centerYAnchor),
                 searchButton.widthAnchor.constraint(equalToConstant: 44),
-                searchButton.heightAnchor.constraint(equalToConstant: 44)
+                searchButton.heightAnchor.constraint(equalToConstant: 44),
+                
+                tocButton.trailingAnchor.constraint(equalTo: searchButton.leadingAnchor, constant: -4),
+                tocButton.centerYAnchor.constraint(equalTo: toolbar.centerYAnchor),
+                tocButton.widthAnchor.constraint(equalToConstant: 44),
+                tocButton.heightAnchor.constraint(equalToConstant: 44),
             ])
         }
     }
     
     private func setupBottomBar() {
-        bottomBar.backgroundColor = .pmSurface
-        bottomBar.layer.shadowColor = UIColor.black.cgColor
-        bottomBar.layer.shadowOpacity = 0.08
-        bottomBar.layer.shadowOffset = CGSize(width: 0, height: -2)
+        let blurEffect = UIBlurEffect(style: .systemThickMaterial)
+        let bottomBarBackground = UIVisualEffectView(effect: blurEffect)
+        bottomBar.addSubview(bottomBarBackground)
+        bottomBarBackground.translatesAutoresizingMaskIntoConstraints = false
+        
         view.addSubview(bottomBar)
         bottomBar.translatesAutoresizingMaskIntoConstraints = false
         
@@ -251,7 +253,12 @@ class ReaderViewController: UIViewController {
             bottomBar.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor),
             bottomBar.leadingAnchor.constraint(equalTo: view.leadingAnchor),
             bottomBar.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-            bottomBar.heightAnchor.constraint(equalToConstant: 60)
+            bottomBar.heightAnchor.constraint(equalToConstant: 60),
+            
+            bottomBarBackground.topAnchor.constraint(equalTo: bottomBar.topAnchor),
+            bottomBarBackground.bottomAnchor.constraint(equalTo: bottomBar.bottomAnchor),
+            bottomBarBackground.leadingAnchor.constraint(equalTo: bottomBar.leadingAnchor),
+            bottomBarBackground.trailingAnchor.constraint(equalTo: bottomBar.trailingAnchor),
         ])
         
         prevButton.setImage(UIImage(systemName: "chevron.left"), for: .normal)
@@ -285,20 +292,22 @@ class ReaderViewController: UIViewController {
             pageLabel.centerXAnchor.constraint(equalTo: pageSlider.centerXAnchor)
         ])
     }
-    
+
     private func setupTTSButton() {
-        // Hide TTS button in embedded mode (like Compare view)
         if isEmbeddedMode {
             ttsButton.isHidden = true
             return
         }
         
         ttsButton.setImage(UIImage(systemName: "play.circle.fill"), for: .normal)
-        ttsButton.tintColor = .pmBlack
+        // The tint color now comes from the tab bar's tint color for consistency
+        ttsButton.tintColor = .systemBlue
+        ttsButton.backgroundColor = .pmSurface.withAlphaComponent(0.8)
         ttsButton.layer.cornerRadius = 28
-        
-        // Apply liquid glass effect to TTS button (no green)
-        LiquidGlassStyle.applyToButton(ttsButton, tintColor: .white.withAlphaComponent(0.2))
+        ttsButton.layer.shadowColor = UIColor.black.cgColor
+        ttsButton.layer.shadowOffset = CGSize(width: 0, height: 2)
+        ttsButton.layer.shadowRadius = 5
+        ttsButton.layer.shadowOpacity = 0.1
         
         ttsButton.addTarget(self, action: #selector(ttsTapped), for: .touchUpInside)
         view.addSubview(ttsButton)
@@ -306,7 +315,7 @@ class ReaderViewController: UIViewController {
         
         NSLayoutConstraint.activate([
             ttsButton.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -20),
-            ttsButton.bottomAnchor.constraint(equalTo: isEmbeddedMode ? view.bottomAnchor : bottomBar.topAnchor, constant: -20),
+            ttsButton.bottomAnchor.constraint(equalTo: bottomBar.topAnchor, constant: -20),
             ttsButton.widthAnchor.constraint(equalToConstant: 56),
             ttsButton.heightAnchor.constraint(equalToConstant: 56)
         ])
@@ -334,18 +343,10 @@ class ReaderViewController: UIViewController {
     }
     
     private func navigateToLink(_ link: Link) {
-        // Stop TTS when navigating from TOC
-        if isTTSPlaying {
-            stopTTS()
-        }
-        
+        if isTTSPlaying { stopTTS() }
         Task {
             guard let anyURL = AnyURL(string: link.href) else { return }
-            let locator = Locator(
-                href: anyURL,
-                mediaType: link.mediaType ?? MediaType.html,
-                title: link.title
-            )
+            let locator = Locator(href: anyURL, mediaType: link.mediaType ?? .html, title: link.title)
             await navigator?.go(to: locator)
         }
     }
@@ -355,7 +356,6 @@ class ReaderViewController: UIViewController {
         searchVC.onSelectResult = { [weak self] locator in
             self?.navigateToLocator(locator)
         }
-        
         let navController = UINavigationController(rootViewController: searchVC)
         if let sheet = navController.sheetPresentationController {
             sheet.detents = [.medium(), .large()]
@@ -365,30 +365,8 @@ class ReaderViewController: UIViewController {
     }
     
     private func navigateToLocator(_ locator: Locator) {
-        // Stop TTS when navigating from search
-        if isTTSPlaying {
-            stopTTS()
-        }
-        
-        Task {
-            print("Navigating to locator: href=\(locator.href.string), position=\(String(describing: locator.locations.position)), progression=\(String(describing: locator.locations.progression))")
-            let success = await navigator?.go(to: locator)
-            if success == true {
-                print("Navigation successful")
-            } else {
-                print("Navigation failed, trying alternative approach")
-                // If direct navigation fails, try navigating to just the chapter
-                let simpleLocator = Locator(
-                    href: locator.href,
-                    mediaType: locator.mediaType,
-                    title: locator.title,
-                    locations: Locator.Locations(
-                        progression: locator.locations.progression, position: locator.locations.position
-                    )
-                )
-                await navigator?.go(to: simpleLocator)
-            }
-        }
+        if isTTSPlaying { stopTTS() }
+        Task { await navigator?.go(to: locator) }
     }
     
     @objc private func bookmarkTapped() {
@@ -416,74 +394,49 @@ class ReaderViewController: UIViewController {
         let navController = UINavigationController(rootViewController: settingsVC)
         if let sheet = navController.sheetPresentationController {
             sheet.detents = [.medium(), .large()]
-            sheet.prefersGrabberVisible = true
         }
         present(navController, animated: true)
     }
     
     @objc private func prevPage() {
-        // Stop TTS when manually navigating
-        if isTTSPlaying {
-            stopTTS()
-        }
+        if isTTSPlaying { stopTTS() }
         Task { await navigator?.goBackward() }
     }
     
     @objc private func nextPage() {
-        // Stop TTS when manually navigating
-        if isTTSPlaying {
-            stopTTS()
-        }
+        if isTTSPlaying { stopTTS() }
         Task { await navigator?.goForward() }
     }
     
     @objc private func sliderChanged() {
         guard totalLocations > 0 else { return }
         let positionIndex = Int(pageSlider.value)
-        
-        // Stop TTS when manually navigating
-        if isTTSPlaying {
-            stopTTS()
-        }
-        
+        if isTTSPlaying { stopTTS() }
         Task {
-            let positionsResult = await publication.positions()
-            if case .success(let positions) = positionsResult, positionIndex < positions.count {
-                let locator = positions[positionIndex]
-                await navigator?.go(to: locator)
+            if case .success(let positions) = await publication.positions(), positionIndex < positions.count {
+                await navigator?.go(to: positions[positionIndex])
             }
         }
     }
     
     @objc private func ttsTapped() {
-        print("TTS: Button tapped, current state: \(isTTSPlaying ? "playing" : "stopped")")
-        
         if isTTSPlaying {
-            print("TTS: Stopping playback")
             stopTTS()
         } else {
-            print("TTS: Starting playback")
-            // Provide visual feedback
-            ttsButton.alpha = 0.5
-            UIView.animate(withDuration: 0.2) {
-                self.ttsButton.alpha = 1.0
-            }
             startTTS()
         }
     }
     
     @objc private func handleTap() {
+        if isEmbeddedMode { return }
         toolbarVisible.toggle()
         UIView.animate(withDuration: 0.3) {
             self.toolbar.alpha = self.toolbarVisible ? 1.0 : 0.0
-            if !self.isEmbeddedMode {
-                self.bottomBar.alpha = self.toolbarVisible ? 1.0 : 0.0
-            }
+            self.bottomBar.alpha = self.toolbarVisible ? 1.0 : 0.0
         }
     }
     
     // MARK: - Helpers
-    
     private func updateBookmarkButton() {
         guard let locator = currentLocator else {
             bookmarkButton.setImage(UIImage(systemName: "bookmark"), for: .normal)
@@ -503,229 +456,31 @@ class ReaderViewController: UIViewController {
         pageLabel.text = "Location \(currentPage) of \(totalLocations)"
     }
     
-    private func startTTS() {
-        // Cancel any existing TTS task
-        ttsTask?.cancel()
-        
-        // Reactivate audio session
-        do {
-            try AVAudioSession.sharedInstance().setActive(true)
-            print("TTS: Audio session reactivated")
-        } catch {
-            print("TTS: Failed to reactivate audio session: \(error)")
-        }
-        
-        ttsTask = Task {
-            // Wait for page to fully load
-            print("TTS: Waiting for page to load...")
-            try? await Task.sleep(nanoseconds: 800_000_000) // 800ms delay
-            
-            // Check if task was cancelled
-            if Task.isCancelled {
-                print("TTS: Task was cancelled, stopping")
-                return
-            }
-            // Extract only visible text on current screen/page
-            let javascript = """
-            (function() {
-                try {
-                    // Get viewport dimensions
-                    var viewportHeight = window.innerHeight || document.documentElement.clientHeight;
-                    var viewportWidth = window.innerWidth || document.documentElement.clientWidth;
-                    var scrollTop = window.pageYOffset || document.documentElement.scrollTop;
-                    var scrollLeft = window.pageXOffset || document.documentElement.scrollLeft;
-                    
-                    console.log('Viewport: height=' + viewportHeight + ', scrollTop=' + scrollTop);
-                    
-                    // Function to check if element is visible in viewport
-                    function isElementInViewport(el) {
-                        var rect = el.getBoundingClientRect();
-                        return (
-                            rect.top < viewportHeight &&
-                            rect.bottom > 0 &&
-                            rect.left < viewportWidth &&
-                            rect.right > 0
-                        );
-                    }
-                    
-                    // Get all text nodes that are visible
-                    var visibleText = [];
-                    var walker = document.createTreeWalker(
-                        document.body,
-                        NodeFilter.SHOW_TEXT,
-                        null,
-                        false
-                    );
-                    
-                    var node;
-                    while (node = walker.nextNode()) {
-                        // Skip script and style content
-                        var parent = node.parentElement;
-                        if (parent && (parent.tagName === 'SCRIPT' || parent.tagName === 'STYLE' || parent.tagName === 'NOSCRIPT')) {
-                            continue;
-                        }
-                        
-                        // Check if parent element is visible
-                        if (parent && isElementInViewport(parent)) {
-                            var text = node.textContent.trim();
-                            if (text.length > 0) {
-                                visibleText.push(text);
-                            }
-                        }
-                    }
-                    
-                    // Join all visible text
-                    var result = visibleText.join(' ');
-                    
-                    // Clean up whitespace
-                    result = result.replace(/\\s+/g, ' ').trim();
-                    
-                    console.log('TTS extracted visible text length:', result.length);
-                    console.log('TTS text preview:', result.substring(0, 100));
-                    return result;
-                } catch (error) {
-                    console.error('TTS extraction error:', error);
-                    return '';
-                }
-            })();
-            """
-            
-            do {
-                print("TTS: Starting text extraction...")
-                guard let navigator = navigator else {
-                    print("TTS: Navigator is nil")
-                    await MainActor.run { self.showTTSError("Navigator not ready") }
-                    return
-                }
-                
-                let result = try await navigator.evaluateJavaScript(javascript)
-                print("TTS: JavaScript result type: \(type(of: result))")
-                
-                // Handle Result type from Readium
-                var extractedText: String?
-                
-                if let text = result as? String {
-                    extractedText = text
-                } else if let resultValue = result as? Result<Any, Error> {
-                    // Unwrap Result type
-                    switch resultValue {
-                    case .success(let value):
-                        print("TTS: Unwrapping Result.success, value type: \(type(of: value))")
-                        extractedText = value as? String
-                    case .failure(let error):
-                        print("TTS: Result.failure: \(error)")
-                        throw error
-                    }
-                } else {
-                    // Try direct conversion
-                    extractedText = "\(result)"
-                }
-                
-                if let text = extractedText {
-                    print("TTS: Extracted text length: \(text.count)")
-                    let trimmedText = text.trimmingCharacters(in: .whitespacesAndNewlines)
-                    
-                    if !trimmedText.isEmpty {
-                        print("TTS: Starting speech synthesis with \(trimmedText.count) characters")
-                        await MainActor.run {
-                            // Limit text to prevent overly long utterances
-                            let maxLength = 5000
-                            let textToSpeak = trimmedText.count > maxLength ? String(trimmedText.prefix(maxLength)) : trimmedText
-                            
-                            let utterance = AVSpeechUtterance(string: textToSpeak)
-                            utterance.rate = AVSpeechUtteranceDefaultSpeechRate * 1.1 // Slightly faster
-                            utterance.volume = 1.0
-                            utterance.pitchMultiplier = 1.0
-                            
-                            // Use default voice for current language
-                            if let voice = AVSpeechSynthesisVoice(language: "en-US") {
-                                utterance.voice = voice
-                            }
-                            
-                            self.speechSynthesizer.speak(utterance)
-                            self.isTTSPlaying = true
-                            self.ttsButton.setImage(UIImage(systemName: "pause.circle.fill"), for: .normal)
-                            print("TTS: Speech started successfully")
-                        }
-                    } else {
-                        print("TTS: No text found on page, trying to advance")
-                        await MainActor.run {
-                            self.didFinishSpeechAndShouldContinue()
-                        }
-                    }
-                } else {
-                    print("TTS: Could not extract string from result: \(String(describing: result))")
-                    await MainActor.run {
-                        self.showTTSError("Could not extract text from page")
-                    }
-                }
-            } catch {
-                print("TTS: Error occurred: \(error)")
-                await MainActor.run {
-                    self.showTTSError("Failed to read page: \(error.localizedDescription)")
-                }
-            }
-        }
-    }
-    
-    private func showTTSError(_ message: String) {
-        let alert = UIAlertController(
-            title: "Text-to-Speech Error",
-            message: message,
-            preferredStyle: .alert
-        )
-        alert.addAction(UIAlertAction(title: "OK", style: .default))
-        present(alert, animated: true)
-        stopTTS()
-    }
-    
     private func stopTTS() {
-        print("TTS: Stopping speech synthesis")
-        
-        // Cancel any pending TTS task
         ttsTask?.cancel()
         ttsTask = nil
-        
         speechSynthesizer.stopSpeaking(at: .immediate)
         isTTSPlaying = false
         ttsButton.setImage(UIImage(systemName: "play.circle.fill"), for: .normal)
-        
-        // Deactivate audio session when not in use
         do {
             try AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
-            print("TTS: Audio session deactivated")
         } catch {
             print("TTS: Failed to deactivate audio session: \(error)")
         }
     }
     
     private func didFinishSpeechAndShouldContinue() {
-        print("TTS: Speech finished, isTTSPlaying: \(isTTSPlaying)")
         if isTTSPlaying {
             Task {
-                print("TTS: Attempting to go forward...")
-                
-                // Mark that we're waiting for new page
                 pageLoadedForTTS = false
-                
                 let moved = await navigator?.goForward()
-                print("TTS: Forward navigation result: \(String(describing: moved))")
-                
                 if moved == true {
-                    // Wait longer for page to fully load after auto-navigation
-                    print("TTS: Waiting for page to load after navigation...")
-                    try? await Task.sleep(nanoseconds: 1_000_000_000) // 1 second
-                    print("TTS: Page changed, restarting TTS")
+                    try? await Task.sleep(nanoseconds: 1_000_000_000)
                     startTTS()
                 } else {
-                    print("TTS: Cannot move forward, stopping TTS")
                     await MainActor.run {
                         self.stopTTS()
-                        let alert = UIAlertController(
-                            title: "Reading Complete",
-                            message: "Reached the end of the content.",
-                            preferredStyle: .alert
-                        )
+                        let alert = UIAlertController(title: "Reading Complete", message: "Reached the end of the content.", preferredStyle: .alert)
                         alert.addAction(UIAlertAction(title: "OK", style: .default))
                         self.present(alert, animated: true)
                     }
@@ -733,10 +488,82 @@ class ReaderViewController: UIViewController {
             }
         }
     }
+    
+    // MARK: - Text Extraction & Highlighting (NEW FOR COMPARISON)
+    
+    /// Extracts all visible text from the current page.
+    func extractVisibleText() async -> String {
+        let javascript = "document.body.innerText;"
+        do {
+            let result = try await navigator?.evaluateJavaScript(javascript)
+            return result as? String ?? ""
+        } catch {
+            print("Failed to extract text: \(error)")
+            return ""
+        }
+    }
+    
+    /// Finds a snippet of text on the current page, scrolls to it, and highlights it.
+    func findAndHighlight(text: String) async {
+        let escapedText = text.replacingOccurrences(of: "'", with: "\\'")
+        let javascript = """
+        (function() {
+            // Remove previous highlights
+            var existingHighlights = document.querySelectorAll('mark.pm-app-highlight');
+            existingHighlights.forEach(function(node) {
+                var parent = node.parentNode;
+                while (node.firstChild) {
+                    parent.insertBefore(node.firstChild, node);
+                }
+                parent.removeChild(node);
+            });
+
+            // Find the first occurrence of the text
+            var snapshot = document.evaluate("string(//body)", document, null, XPathResult.STRING_TYPE, null);
+            var bodyText = snapshot.stringValue || "";
+            var index = bodyText.indexOf('\(escapedText)');
+            
+            if (index === -1) return;
+
+            // Find the node containing the text
+            var treeWalker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, null, false);
+            var currentNode;
+            var charCount = 0;
+            var foundNode = null;
+            var startOffset = 0;
+            
+            while (currentNode = treeWalker.nextNode()) {
+                var nodeLength = currentNode.nodeValue.length;
+                if (charCount + nodeLength > index) {
+                    foundNode = currentNode;
+                    startOffset = index - charCount;
+                    break;
+                }
+                charCount += nodeLength;
+            }
+            
+            if (!foundNode) return;
+            
+            // Create a range and highlight
+            var range = document.createRange();
+            range.setStart(foundNode, startOffset);
+            range.setEnd(foundNode, startOffset + '\(escapedText)'.length);
+            
+            var mark = document.createElement('mark');
+            mark.className = 'pm-app-highlight';
+            mark.style.backgroundColor = '#FFD700'; // Gold color
+            mark.style.color = 'black';
+            
+            range.surroundContents(mark);
+            mark.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        })();
+        """
+        _ = try? await navigator?.evaluateJavaScript(javascript)
+    }
+
 }
 
 // MARK: - EPUBNavigatorDelegate
-
 extension ReaderViewController: EPUBNavigatorDelegate {
     func navigator(_ navigator: Navigator, locationDidChange locator: Locator) {
         self.currentLocator = locator
@@ -745,49 +572,30 @@ extension ReaderViewController: EPUBNavigatorDelegate {
         }
         updatePageLabel()
         updateBookmarkButton()
-        
-        // Mark page as loaded
         pageLoadedForTTS = true
-        print("TTS: Page loaded at position \(locator.locations.position ?? -1)")
     }
     
     func navigator(_ navigator: Navigator, presentError error: NavigatorError) {
         print("Navigator error: \(error)")
-        let alert = UIAlertController(
-            title: "Navigation Error",
-            message: "An error occurred while navigating the publication.",
-            preferredStyle: .alert
-        )
-        alert.addAction(UIAlertAction(title: "OK", style: .default))
-        present(alert, animated: true)
     }
 }
 
 // MARK: - ReaderSettingsDelegate
-
 extension ReaderViewController: ReaderSettingsDelegate {
     func settingsDidChange() {
         applySettings()
     }
     
     private func applySettings() {
+        guard let navigator = navigator else { return }
         let settings = ReaderSettings.shared
         
-        guard let navigator = navigator else { return }
-        
-        // Create EPUBPreferences object
         var preferences = EPUBPreferences()
-        
-        // Apply scroll mode setting
         preferences.scroll = settings.scrollMode == .continuous
         
-        // Apply preferences to navigator
         Task {
             do {
                 try await navigator.submitPreferences(preferences)
-                print("Settings applied successfully: scroll=\(preferences.scroll)")
-                
-                // Apply CSS-based settings (font size, theme, line spacing)
                 await applyCSSSettings()
             } catch {
                 print("Failed to apply settings: \(error)")
@@ -797,21 +605,14 @@ extension ReaderViewController: ReaderSettingsDelegate {
     
     private func applyCSSSettings() async {
         let settings = ReaderSettings.shared
-        
-        // Build CSS based on settings
-        var backgroundColor = "#FFFFFF"
-        var textColor = "#000000"
+        var backgroundColor = "#FFFFFF", textColor = "#000000"
         
         switch settings.theme {
-        case .light:
-            backgroundColor = "#FFFFFF"
-            textColor = "#000000"
         case .dark:
-            backgroundColor = "#1C1C1E"
-            textColor = "#FFFFFF"
+            backgroundColor = "#1C1C1E"; textColor = "#FFFFFF"
         case .sepia:
-            backgroundColor = "#F4ECD8"
-            textColor = "#5B4636"
+            backgroundColor = "#F4ECD8"; textColor = "#5B4636"
+        default: break
         }
         
         let css = """
@@ -821,73 +622,59 @@ extension ReaderViewController: ReaderSettingsDelegate {
             background-color: \(backgroundColor) !important;
             color: \(textColor) !important;
         }
-        
-        p, div, span, li, td, th {
-            font-size: \(settings.fontSize)px !important;
-            line-height: \(settings.lineSpacing) !important;
-            color: \(textColor) !important;
-        }
-        
-        h1 { font-size: \(settings.fontSize + 8)px !important; }
-        h2 { font-size: \(settings.fontSize + 6)px !important; }
-        h3 { font-size: \(settings.fontSize + 4)px !important; }
-        h4 { font-size: \(settings.fontSize + 2)px !important; }
-        h5 { font-size: \(settings.fontSize + 1)px !important; }
-        h6 { font-size: \(settings.fontSize)px !important; }
         """
         
         let javascript = """
-        (function() {
-            // Remove existing custom style if present
-            var existingStyle = document.getElementById('reader-custom-style');
-            if (existingStyle) {
-                existingStyle.remove();
-            }
-            
-            // Create and inject new style
-            var style = document.createElement('style');
-            style.id = 'reader-custom-style';
-            style.textContent = `\(css)`;
-            document.head.appendChild(style);
-        })();
+        var style = document.getElementById('reader-custom-style') || document.createElement('style');
+        style.id = 'reader-custom-style';
+        style.textContent = `\(css)`;
+        document.head.appendChild(style);
         """
-        
-        do {
-            _ = try await navigator?.evaluateJavaScript(javascript)
-            print("CSS settings applied successfully")
-        } catch {
-            print("Failed to apply CSS settings: \(error)")
-        }
+        _ = try? await navigator?.evaluateJavaScript(javascript)
     }
 }
 
 // MARK: - AVSpeechSynthesizerDelegate
-
 extension ReaderViewController: AVSpeechSynthesizerDelegate {
-    func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didStart utterance: AVSpeechUtterance) {
-        print("TTS: Speech started - text length: \(utterance.speechString.count)")
+    
+    private func startTTS() {
+        ttsTask?.cancel()
+        do { try AVAudioSession.sharedInstance().setActive(true) } catch { print("TTS audio session error: \(error)") }
+        
+        ttsTask = Task {
+            try? await Task.sleep(nanoseconds: 800_000_000)
+            if Task.isCancelled { return }
+            
+            let javascript = "document.body.innerText;"
+            do {
+                if let text = try await navigator?.evaluateJavaScript(javascript) as? String, !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    await MainActor.run {
+                        let utterance = AVSpeechUtterance(string: text)
+                        utterance.voice = AVSpeechSynthesisVoice(language: "en-US")
+                        self.speechSynthesizer.speak(utterance)
+                        self.isTTSPlaying = true
+                        self.ttsButton.setImage(UIImage(systemName: "pause.circle.fill"), for: .normal)
+                    }
+                } else {
+                    await MainActor.run { self.didFinishSpeechAndShouldContinue() }
+                }
+            } catch {
+                print("TTS Error: \(error)")
+            }
+        }
     }
     
     func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didFinish utterance: AVSpeechUtterance) {
-        print("TTS: Speech finished normally")
         didFinishSpeechAndShouldContinue()
     }
     
     func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didCancel utterance: AVSpeechUtterance) {
-        print("TTS: Speech was cancelled")
         isTTSPlaying = false
         ttsButton.setImage(UIImage(systemName: "play.circle.fill"), for: .normal)
     }
-    
-    func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didPause utterance: AVSpeechUtterance) {
-        print("TTS: Speech was paused")
-    }
-    
-    func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didContinue utterance: AVSpeechUtterance) {
-        print("TTS: Speech was continued")
-    }
 }
 
+// MARK: - UIGestureRecognizerDelegate
 extension ReaderViewController: UIGestureRecognizerDelegate {
     func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldRecognizeSimultaneouslyWith otherGestureRecognizer: UIGestureRecognizer) -> Bool {
         return true

@@ -6,109 +6,26 @@
 //
 import UIKit
 
-class GenerateViewController: UIViewController {
+class GenerateViewController: UIViewController, UITableViewDelegate, UITableViewDataSource {
 
-    // MARK: - UI Components
-    private let scrollView = UIScrollView()
-    private let contentView = UIView()
-    
-    private lazy var projectTypePicker: UIPickerView = {
-        let picker = UIPickerView()
-        picker.dataSource = self
-        picker.delegate = self
-        picker.tag = 0
-        return picker
-    }()
-    
-    private lazy var projectScalePicker: UIPickerView = {
-        let picker = UIPickerView()
-        picker.dataSource = self
-        picker.delegate = self
-        picker.tag = 1
-        return picker
-    }()
-    
-    private lazy var standardPicker: UIPickerView = {
-        let picker = UIPickerView()
-        picker.dataSource = self
-        picker.delegate = self
-        picker.tag = 2
-        return picker
-    }()
-    
-    private let generateButton: UIButton = {
-        let button = UIButton(type: .system)
-        button.setTitle("Generate Process", for: .normal)
-        button.titleLabel?.font = Typography.bodyMedium()
-        button.setTitleColor(.pmBlack, for: .normal)
-        button.addTarget(self, action: #selector(generateButtonTapped), for: .touchUpInside)
-        return button
-    }()
-    
-    private let resultContainerView: UIView = {
-        let view = UIView()
-        view.backgroundColor = .pmSurface
-        view.layer.cornerRadius = CornerRadius.card
-        view.layer.shadowColor = UIColor.black.cgColor
-        view.layer.shadowOffset = CGSize(width: 0, height: 2)
-        view.layer.shadowRadius = 8
-        view.layer.shadowOpacity = 0.06
-        view.isHidden = true
-        return view
-    }()
-    
-    private let resultTextView: UITextView = {
-        let textView = UITextView()
-        textView.isEditable = false
-        textView.font = Typography.body()
-        textView.textColor = .pmTextPrimary
-        textView.backgroundColor = .clear
-        textView.text = ""
-        textView.textContainerInset = UIEdgeInsets(top: 16, left: 16, bottom: 16, right: 16)
-        return textView
-    }()
-    
-    private let actionButtonsStack: UIStackView = {
-        let stack = UIStackView()
-        stack.axis = .horizontal
-        stack.distribution = .fillEqually
-        stack.spacing = 12
-        return stack
-    }()
-    
-    private lazy var modifyButton: UIButton = {
-        let button = UIButton(type: .system)
-        button.setTitle("Modify Inputs", for: .normal)
-        button.titleLabel?.font = Typography.body()
-        button.setTitleColor(.pmBlack, for: .normal)
-        button.addTarget(self, action: #selector(modifyInputsTapped), for: .touchUpInside)
-        return button
-    }()
-    
-    private lazy var regenerateButton: UIButton = {
-        let button = UIButton(type: .system)
-        button.setTitle("Regenerate", for: .normal)
-        button.titleLabel?.font = Typography.body()
-        button.setTitleColor(.pmBlack, for: .normal)
-        button.addTarget(self, action: #selector(regenerateButtonTapped), for: .touchUpInside)
-        return button
-    }()
-    
-    private lazy var shareButton: UIButton = {
-        let button = UIButton(type: .system)
-        button.setTitle("Share", for: .normal)
-        button.titleLabel?.font = Typography.body()
-        button.setTitleColor(.pmBlack, for: .normal)
-        button.addTarget(self, action: #selector(shareButtonTapped), for: .touchUpInside)
-        return button
-    }()
-    
     // MARK: - Data
     private let projectTypes = ProcessGenerator.ProjectType.allCases
     private let projectScales = ProcessGenerator.ProjectScale.allCases
     private let standards = StandardsData.allStandards
-    private var hasGenerated = false
+    
+    // Selections
+    private var selectedType = ProcessGenerator.ProjectType.software
+    private var selectedScale = ProcessGenerator.ProjectScale.medium
+    private var selectedStandard = StandardsData.allStandards.first!
 
+    enum Section: Int, CaseIterable {
+        case inputs = 0
+        case action = 1
+    }
+    
+    // MARK: - UI Components
+    private let tableView = UITableView(frame: .zero, style: .insetGrouped)
+    
     // MARK: - Lifecycle
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -116,217 +33,258 @@ class GenerateViewController: UIViewController {
         navigationController?.navigationBar.prefersLargeTitles = true
         view.backgroundColor = .pmBackground
         
-        // Style navigation bar
         if let navigationBar = navigationController?.navigationBar {
-            navigationBar.largeTitleTextAttributes = [
-                .font: Typography.largeTitle(),
-                .foregroundColor: UIColor.pmTextPrimary
-            ]
-            navigationBar.titleTextAttributes = [
-                .font: Typography.bodyMedium(),
-                .foregroundColor: UIColor.pmTextPrimary
-            ]
+            navigationBar.largeTitleTextAttributes = [.font: Typography.largeTitle(), .foregroundColor: UIColor.pmTextPrimary]
+            navigationBar.titleTextAttributes = [.font: Typography.bodyMedium(), .foregroundColor: UIColor.pmTextPrimary]
         }
         
-        setupUI()
-        
-        // Apply liquid glass to buttons after setup (no green)
-        LiquidGlassStyle.applyToButton(generateButton, tintColor: .white.withAlphaComponent(0.25))
-        LiquidGlassStyle.applyToButton(modifyButton, tintColor: .pmCoral.withAlphaComponent(0.12))
-        LiquidGlassStyle.applyToButton(regenerateButton, tintColor: .white.withAlphaComponent(0.2))
-        LiquidGlassStyle.applyToButton(shareButton, tintColor: .systemPurple.withAlphaComponent(0.15))
+        setupTableView()
     }
 
     // MARK: - UI Setup
-    private func setupUI() {
-        // Setup scroll view for smaller screens
-        view.addSubview(scrollView)
-        scrollView.translatesAutoresizingMaskIntoConstraints = false
-        scrollView.addSubview(contentView)
-        contentView.translatesAutoresizingMaskIntoConstraints = false
-
+    private func setupTableView() {
+        view.addSubview(tableView)
+        tableView.translatesAutoresizingMaskIntoConstraints = false
+        tableView.delegate = self
+        tableView.dataSource = self
+        tableView.register(UITableViewCell.self, forCellReuseIdentifier: "InputCell")
+        
         NSLayoutConstraint.activate([
-            scrollView.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
-            scrollView.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor),
-            scrollView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
-            scrollView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-            
-            contentView.topAnchor.constraint(equalTo: scrollView.topAnchor),
-            contentView.bottomAnchor.constraint(equalTo: scrollView.bottomAnchor),
-            contentView.leadingAnchor.constraint(equalTo: scrollView.leadingAnchor),
-            contentView.trailingAnchor.constraint(equalTo: scrollView.trailingAnchor),
-            contentView.widthAnchor.constraint(equalTo: scrollView.widthAnchor)
-        ])
-        
-        // Setup main stack view
-        let stackView = UIStackView()
-        stackView.axis = .vertical
-        stackView.spacing = 25
-        stackView.translatesAutoresizingMaskIntoConstraints = false
-        contentView.addSubview(stackView)
-        
-        // Add components to stack view
-        stackView.addArrangedSubview(createSection(title: "Project Type", picker: projectTypePicker))
-        stackView.addArrangedSubview(createSection(title: "Project Scale", picker: projectScalePicker))
-        stackView.addArrangedSubview(createSection(title: "Preferred Standard", picker: standardPicker))
-        stackView.addArrangedSubview(generateButton)
-        stackView.addArrangedSubview(resultContainerView)
-        
-        // Setup result container
-        resultContainerView.addSubview(resultTextView)
-        resultContainerView.addSubview(actionButtonsStack)
-        
-        resultTextView.translatesAutoresizingMaskIntoConstraints = false
-        actionButtonsStack.translatesAutoresizingMaskIntoConstraints = false
-        
-        // Add action buttons to stack
-        actionButtonsStack.addArrangedSubview(modifyButton)
-        actionButtonsStack.addArrangedSubview(regenerateButton)
-        actionButtonsStack.addArrangedSubview(shareButton)
-
-        // Layout
-        NSLayoutConstraint.activate([
-            stackView.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 20),
-            stackView.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 20),
-            stackView.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -20),
-            stackView.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -20),
-            
-            generateButton.heightAnchor.constraint(equalToConstant: 50),
-            resultContainerView.heightAnchor.constraint(greaterThanOrEqualToConstant: 400),
-            
-            // Result container layout
-            resultTextView.topAnchor.constraint(equalTo: resultContainerView.topAnchor, constant: 12),
-            resultTextView.leadingAnchor.constraint(equalTo: resultContainerView.leadingAnchor),
-            resultTextView.trailingAnchor.constraint(equalTo: resultContainerView.trailingAnchor),
-            resultTextView.bottomAnchor.constraint(equalTo: actionButtonsStack.topAnchor, constant: -12),
-            
-            actionButtonsStack.leadingAnchor.constraint(equalTo: resultContainerView.leadingAnchor, constant: 16),
-            actionButtonsStack.trailingAnchor.constraint(equalTo: resultContainerView.trailingAnchor, constant: -16),
-            actionButtonsStack.bottomAnchor.constraint(equalTo: resultContainerView.bottomAnchor, constant: -16),
-            actionButtonsStack.heightAnchor.constraint(equalToConstant: 44)
+            tableView.topAnchor.constraint(equalTo: view.topAnchor),
+            tableView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
+            tableView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            tableView.trailingAnchor.constraint(equalTo: view.trailingAnchor)
         ])
     }
     
-    private func createSection(title: String, picker: UIPickerView) -> UIView {
-        let label = UILabel()
-        label.text = title
-        label.font = .systemFont(ofSize: 17, weight: .semibold)
-        
-        let stack = UIStackView(arrangedSubviews: [label, picker])
-        stack.axis = .vertical
-        stack.spacing = 8
-        picker.heightAnchor.constraint(equalToConstant: 100).isActive = true
-        
-        return stack
-    }
-
     // MARK: - Actions
     @objc private func generateButtonTapped() {
-        generateProcess()
-    }
-    
-    @objc private func regenerateButtonTapped() {
-        // Add a subtle animation
-        UIView.transition(with: resultTextView,
-                         duration: 0.3,
-                         options: .transitionCrossDissolve,
-                         animations: {
-            self.generateProcess()
-        })
-    }
-    
-    @objc private func modifyInputsTapped() {
-        // Scroll to top to show pickers
-        scrollView.setContentOffset(.zero, animated: true)
-        
-        // Optional: hide result temporarily
-        UIView.animate(withDuration: 0.3) {
-            self.resultContainerView.alpha = 0.5
-        } completion: { _ in
-            UIView.animate(withDuration: 0.3) {
-                self.resultContainerView.alpha = 1.0
-            }
-        }
-    }
-    
-    @objc private func shareButtonTapped() {
-        guard hasGenerated, !resultTextView.text.isEmpty else { return }
-        
-        let textToShare = resultTextView.text ?? ""
-        let activityVC = UIActivityViewController(
-            activityItems: [textToShare],
-            applicationActivities: nil
-        )
-        
-        // For iPad support
-        if let popover = activityVC.popoverPresentationController {
-            popover.sourceView = shareButton
-            popover.sourceRect = shareButton.bounds
-        }
-        
-        present(activityVC, animated: true)
-    }
-    
-    // MARK: - Helper Methods
-    
-    private func generateProcess() {
-        let selectedType = projectTypes[projectTypePicker.selectedRow(inComponent: 0)]
-        let selectedScale = projectScales[projectScalePicker.selectedRow(inComponent: 0)]
-        let selectedStandard = standards[standardPicker.selectedRow(inComponent: 0)]
-        
         let generatedText = ProcessGenerator.generate(
             type: selectedType,
             scale: selectedScale,
             standard: selectedStandard
         )
         
-        resultTextView.text = generatedText
-        
-        // Show result container if first generation
-        if !hasGenerated {
-            resultContainerView.isHidden = false
-            hasGenerated = true
-            
-            // Animate appearance
-            resultContainerView.alpha = 0
-            resultContainerView.transform = CGAffineTransform(scaleX: 0.95, y: 0.95)
-            
-            UIView.animate(withDuration: 0.4, delay: 0, usingSpringWithDamping: 0.8, initialSpringVelocity: 0.5, options: .curveEaseOut) {
-                self.resultContainerView.alpha = 1.0
-                self.resultContainerView.transform = .identity
-            }
-            
-            // Scroll to show result
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
-                let resultFrame = self.resultContainerView.frame
-                let scrollOffset = CGPoint(x: 0, y: resultFrame.origin.y - 20)
-                self.scrollView.setContentOffset(scrollOffset, animated: true)
-            }
+        // Present the result in a new view controller
+        let resultVC = ResultViewController(generatedText: generatedText)
+        let navController = UINavigationController(rootViewController: resultVC)
+        present(navController, animated: true)
+    }
+    
+    // MARK: - UITableViewDataSource
+    func numberOfSections(in tableView: UITableView) -> Int {
+        return Section.allCases.count
+    }
+    
+    func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
+        guard let sectionType = Section(rawValue: section) else { return 0 }
+        switch sectionType {
+        case .inputs:
+            return 3 // Type, Scale, Standard
+        case .action:
+            return 1 // Generate button
         }
+    }
+    
+    func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
+        guard let sectionType = Section(rawValue: indexPath.section) else { return UITableViewCell() }
+        
+        switch sectionType {
+        case .inputs:
+            let cell = UITableViewCell(style: .value1, reuseIdentifier: "InputCell")
+            cell.accessoryType = .disclosureIndicator
+            var content = cell.defaultContentConfiguration()
+            
+            switch indexPath.row {
+            case 0:
+                content.text = "Project Type"
+                content.secondaryText = selectedType.rawValue
+            case 1:
+                content.text = "Project Scale"
+                content.secondaryText = selectedScale.rawValue
+            case 2:
+                content.text = "Preferred Standard"
+                content.secondaryText = selectedStandard.title
+            default: break
+            }
+            
+            content.textProperties.font = Typography.body()
+            content.secondaryTextProperties.font = Typography.body()
+            cell.contentConfiguration = content
+            return cell
+            
+        case .action:
+            let cell = UITableViewCell(style: .default, reuseIdentifier: "ButtonCell")
+            var content = cell.defaultContentConfiguration()
+            content.text = "Generate Process"
+            content.textProperties.font = Typography.bodyMedium()
+            content.textProperties.color = .pmCoral
+            content.textProperties.alignment = .center
+            cell.contentConfiguration = content
+            return cell
+        }
+    }
+    
+    func tableView(_ tableView: UITableView, titleForHeaderInSection section: Int) -> String? {
+        guard let sectionType = Section(rawValue: section) else { return nil }
+        return sectionType == .inputs ? "Project Scenario" : nil
+    }
+    
+    // MARK: - UITableViewDelegate
+    func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
+        tableView.deselectRow(at: indexPath, animated: true)
+        guard let sectionType = Section(rawValue: indexPath.section) else { return }
+        
+        switch sectionType {
+        case .inputs:
+            // Present a picker for the selected row
+            presentPicker(for: indexPath.row)
+        case .action:
+            // Trigger the generation
+            generateButtonTapped()
+        }
+    }
+    
+    private func presentPicker(for row: Int) {
+        let title: String
+        let data: [String]
+        let handler: (String) -> Void
+        
+        switch row {
+        case 0:
+            title = "Select Project Type"
+            data = projectTypes.map { $0.rawValue }
+            handler = { [weak self] selectedValue in
+                self?.selectedType = ProcessGenerator.ProjectType(rawValue: selectedValue) ?? .software
+            }
+        case 1:
+            title = "Select Project Scale"
+            data = projectScales.map { $0.rawValue }
+            handler = { [weak self] selectedValue in
+                self?.selectedScale = ProcessGenerator.ProjectScale(rawValue: selectedValue) ?? .medium
+            }
+        case 2:
+            title = "Select Preferred Standard"
+            data = standards.map { $0.title }
+            handler = { [weak self] selectedValue in
+                self?.selectedStandard = StandardsData.allStandards.first(where: { $0.title == selectedValue }) ?? StandardsData.allStandards.first!
+            }
+        default: return
+        }
+        
+        let pickerVC = PickerViewController(title: title, data: data) { [weak self] selectedValue in
+            handler(selectedValue)
+            self?.tableView.reloadData()
+        }
+
+        let navController = UINavigationController(rootViewController: pickerVC)
+        if let sheet = navController.sheetPresentationController {
+            sheet.detents = [.medium()]
+            sheet.prefersGrabberVisible = true
+        }
+        present(navController, animated: true)
     }
 }
 
-// MARK: - UIPickerViewDataSource & Delegate
-extension GenerateViewController: UIPickerViewDataSource, UIPickerViewDelegate {
-    func numberOfComponents(in pickerView: UIPickerView) -> Int {
-        return 1
-    }
 
-    func pickerView(_ pickerView: UIPickerView, numberOfRowsInComponent component: Int) -> Int {
-        switch pickerView.tag {
-        case 0: return projectTypes.count
-        case 1: return projectScales.count
-        case 2: return standards.count
-        default: return 0
-        }
+// MARK: - Result View Controller
+// A new simple VC to display the generated text
+class ResultViewController: UIViewController {
+    
+    private let textView = UITextView()
+    private let generatedText: String
+    
+    init(generatedText: String) {
+        self.generatedText = generatedText
+        super.init(nibName: nil, bundle: nil)
     }
+    
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+    
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        title = "Generated Process"
+        view.backgroundColor = .pmBackground
+        
+        navigationItem.rightBarButtonItem = UIBarButtonItem(barButtonSystemItem: .done, target: self, action: #selector(doneTapped))
+        navigationItem.leftBarButtonItem = UIBarButtonItem(image: UIImage(systemName: "square.and.arrow.up"), style: .plain, target: self, action: #selector(shareTapped))
+        
+        textView.text = generatedText
+        textView.font = Typography.body()
+        textView.textColor = .pmTextPrimary
+        textView.backgroundColor = .clear
+        textView.isEditable = false
+        textView.textContainerInset = UIEdgeInsets(top: Spacing.md, left: Spacing.sm, bottom: Spacing.md, right: Spacing.sm)
+        
+        view.addSubview(textView)
+        textView.translatesAutoresizingMaskIntoConstraints = false
+        
+        NSLayoutConstraint.activate([
+            textView.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
+            textView.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor),
+            textView.leadingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.leadingAnchor),
+            textView.trailingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.trailingAnchor)
+        ])
+    }
+    
+    @objc private func doneTapped() {
+        dismiss(animated: true)
+    }
+    
+    @objc private func shareTapped() {
+        let activityVC = UIActivityViewController(activityItems: [generatedText], applicationActivities: nil)
+        present(activityVC, animated: true)
+    }
+}
 
-    func pickerView(_ pickerView: UIPickerView, titleForRow row: Int, forComponent component: Int) -> String? {
-        switch pickerView.tag {
-        case 0: return projectTypes[row].rawValue
-        case 1: return projectScales[row].rawValue
-        case 2: return standards[row].title
-        default: return nil
-        }
+// MARK: - Picker View Controller
+// A reusable picker presented in a sheet
+class PickerViewController: UIViewController, UIPickerViewDelegate, UIPickerViewDataSource {
+    
+    private let pickerView = UIPickerView()
+    private let data: [String]
+    private var onValueSelected: (String) -> Void
+    
+    init(title: String, data: [String], onValueSelected: @escaping (String) -> Void) {
+        self.data = data
+        self.onValueSelected = onValueSelected
+        super.init(nibName: nil, bundle: nil)
+        self.title = title
     }
+    
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+    
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        view.backgroundColor = .pmSurface
+        
+        navigationItem.rightBarButtonItem = UIBarButtonItem(barButtonSystemItem: .done, target: self, action: #selector(doneTapped))
+        
+        pickerView.delegate = self
+        pickerView.dataSource = self
+        view.addSubview(pickerView)
+        pickerView.translatesAutoresizingMaskIntoConstraints = false
+        
+        NSLayoutConstraint.activate([
+            pickerView.centerXAnchor.constraint(equalTo: view.centerXAnchor),
+            pickerView.centerYAnchor.constraint(equalTo: view.centerYAnchor),
+            pickerView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            pickerView.trailingAnchor.constraint(equalTo: view.trailingAnchor)
+        ])
+    }
+    
+    @objc private func doneTapped() {
+        let selectedRow = pickerView.selectedRow(inComponent: 0)
+        let selectedValue = data[selectedRow]
+        onValueSelected(selectedValue)
+        dismiss(animated: true)
+    }
+    
+    func numberOfComponents(in pickerView: UIPickerView) -> Int { 1 }
+    func pickerView(_ pickerView: UIPickerView, numberOfRowsInComponent component: Int) -> Int { data.count }
+    func pickerView(_ pickerView: UIPickerView, titleForRow row: Int, forComponent component: Int) -> String? { data[row] }
 }

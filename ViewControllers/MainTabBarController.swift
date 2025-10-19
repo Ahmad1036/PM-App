@@ -55,31 +55,57 @@ class MainTabBarController: UITabBarController {
         tabBar.unselectedItemTintColor = .systemGray2
     }
 
+
+    // In MainTabBarController.swift
+
+    // In MainTabBarController.swift
+
     private func setupTabs() {
         // 1. Create instances of our view controllers
         let exploreVC = ExploreViewController()
         let compareVC = CompareViewController()
         let generateVC = GenerateViewController()
 
-        // 2. Configure the tab bar item for each view controller
-        exploreVC.tabBarItem = UITabBarItem(title: "Explore", image: UIImage(systemName: "book.closed"), selectedImage: UIImage(systemName: "book.closed.fill"))
-        compareVC.tabBarItem = UITabBarItem(title: "Compare", image: UIImage(systemName: "square.split.2x1"), selectedImage: UIImage(systemName: "square.split.2x1.fill"))
-        generateVC.tabBarItem = UITabBarItem(title: "Generate", image: UIImage(systemName: "doc.text.magnifyingglass"), selectedImage: UIImage(systemName: "doc.text.magnifyingglass"))
+        // 2. Define the target size for our tab bar icons
+        let iconSize = CGSize(width: 25, height: 25)
 
-        // 3. Embed each view controller in its own navigation controller
-        // This gives us a navigation bar at the top for free (for titles, etc.)
+        // 3. Load, resize, and set the rendering mode for each icon
+        // THE FIX: We chain our new `.resize()` function before setting the rendering mode.
+        let exploreIcon = UIImage(named: "Folder 2")?
+            .resize(to: iconSize)?
+            .withRenderingMode(.alwaysOriginal)
+        
+        let compareIcon = UIImage(named: "Magnifier 1")?
+            .resize(to: iconSize)?
+            .withRenderingMode(.alwaysOriginal)
+        
+        let generateIcon = UIImage(named: "Bookmark")?
+            .resize(to: iconSize)?
+            .withRenderingMode(.alwaysOriginal)
+
+        // 4. Configure the tab bar item for each view controller
+        exploreVC.tabBarItem = UITabBarItem(title: "Explore", image: exploreIcon, selectedImage: exploreIcon)
+        compareVC.tabBarItem = UITabBarItem(title: "Compare", image: compareIcon, selectedImage: compareIcon)
+        generateVC.tabBarItem = UITabBarItem(title: "Generate", image: generateIcon, selectedImage: generateIcon)
+
+        // 5. Embed each view controller in its own navigation controller
         let exploreNav = UINavigationController(rootViewController: exploreVC)
         let compareNav = UINavigationController(rootViewController: compareVC)
         let generateNav = UINavigationController(rootViewController: generateVC)
         
-        // 4. Set the navigation controllers as the view controllers for the tab bar
+        // 6. Set the navigation controllers as the view controllers for the tab bar
         setViewControllers([exploreNav, compareNav, generateNav], animated: false)
         
-        // 5. Set initial selected tab
+        // 7. Set initial selected tab
         selectedIndex = 0
-        
-        // 6. Force immediate layout
-        view.setNeedsLayout()
-        view.layoutIfNeeded()
+    }
+}
+extension UIImage {
+    func resize(to size: CGSize) -> UIImage? {
+        UIGraphicsBeginImageContextWithOptions(size, false, 0.0)
+        self.draw(in: CGRect(origin: .zero, size: size))
+        let resizedImage = UIGraphicsGetImageFromCurrentImageContext()
+        UIGraphicsEndImageContext()
+        return resizedImage
     }
 }

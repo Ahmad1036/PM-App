@@ -13,252 +13,131 @@ import ReadiumAdapterGCDWebServer
 class CompareViewController: UIViewController {
 
     // MARK: - UI Components
-    private let scrollView = UIScrollView()
-    private let contentView = UIView()
-    
     private let leftContainer = UIView()
     private let rightContainer = UIView()
-    
-    // Headers with book selection
     private let leftHeaderButton = UIButton(type: .system)
     private let rightHeaderButton = UIButton(type: .system)
-    
-    // Navigation controls
-    private let leftPrevButton = UIButton(type: .system)
-    private let leftNextButton = UIButton(type: .system)
-    private let leftPageLabel = UILabel()
-    
-    private let rightPrevButton = UIButton(type: .system)
-    private let rightNextButton = UIButton(type: .system)
-    private let rightPageLabel = UILabel()
-    
-    // Comparison section
     private let compareButton = UIButton(type: .system)
-    private let comparisonSummaryView = ComparisonSummaryView()
-    
-    // Reader data
+
+    // MARK: - Reader Data
     private var leftStandard: Standard?
     private var rightStandard: Standard?
     private var leftReaderVC: ReaderViewController?
     private var rightReaderVC: ReaderViewController?
-    
-    // Selected chapters for comparison
-    private var leftSelectedChapter: Link?
-    private var rightSelectedChapter: Link?
+
+    // MARK: - Comparison Logic
+    private let analysisTopics: [String: [String]] = [
+        "Scope Management": ["scope", "requirements", "wbs", "work breakdown"],
+        "Risk Management": ["risk", "threat", "opportunity", "issue"],
+        "Stakeholder Engagement": ["stakeholder", "communication", "engagement"],
+        "Quality Management": ["quality", "assurance", "control", "testing"],
+        "Schedule Management": ["schedule", "timeline", "milestone", "gantt"],
+        "Cost Management": ["cost", "budget", "estimate", "finance"],
+        "Project Governance": ["governance", "roles", "responsibilities", "project board"],
+        "Business Case": ["business case", "justification", "benefits", "roi"],
+        "Change Control": ["change control", "change request", "variation"]
+    ]
 
     // MARK: - Lifecycle
-    
     override func viewDidLoad() {
         super.viewDidLoad()
         title = "Compare Standards"
         navigationController?.navigationBar.prefersLargeTitles = true
         view.backgroundColor = .pmBackground
         
-        // Style navigation bar
         if let navigationBar = navigationController?.navigationBar {
-            navigationBar.largeTitleTextAttributes = [
-                .font: Typography.largeTitle(),
-                .foregroundColor: UIColor.pmTextPrimary
-            ]
-            navigationBar.titleTextAttributes = [
-                .font: Typography.bodyMedium(),
-                .foregroundColor: UIColor.pmTextPrimary
-            ]
+            navigationBar.largeTitleTextAttributes = [.font: Typography.largeTitle(), .foregroundColor: UIColor.pmTextPrimary]
+            navigationBar.titleTextAttributes = [.font: Typography.bodyMedium(), .foregroundColor: UIColor.pmTextPrimary]
         }
         
-        // Apply optimized settings for split view
         applySplitViewSettings()
-        
         setupSplitView()
         loadDefaultStandards()
     }
     
     // MARK: - Setup
-    
     private func applySplitViewSettings() {
-        // Optimize settings for split view - minimal font, paginated mode
         let settings = ReaderSettings.shared
-        settings.fontSize = 12 // Smallest font for split view
-        settings.scrollMode = .paginated // Better for side-by-side
-        settings.lineSpacing = 1.0 // Minimum line spacing
-        settings.theme = .light // Consistent theme
+        settings.fontSize = 14
+        settings.scrollMode = .paginated
+        settings.lineSpacing = 1.2
+        settings.theme = .light
     }
 
     private func setupSplitView() {
-        // Left side
-        let leftStack = createSideView(
-            container: leftContainer,
-            headerButton: leftHeaderButton,
-            prevButton: leftPrevButton,
-            nextButton: leftNextButton,
-            pageLabel: leftPageLabel,
-            side: .left
-        )
+        // Create headers
+        let leftHeader = createHeaderView(button: leftHeaderButton, side: .left)
+        let rightHeader = createHeaderView(button: rightHeaderButton, side: .right)
         
-        // Right side
-        let rightStack = createSideView(
-            container: rightContainer,
-            headerButton: rightHeaderButton,
-            prevButton: rightPrevButton,
-            nextButton: rightNextButton,
-            pageLabel: rightPageLabel,
-            side: .right
-        )
+        let headerStack = UIStackView(arrangedSubviews: [leftHeader, rightHeader])
+        headerStack.distribution = .fillEqually
+        headerStack.spacing = 1
+        headerStack.backgroundColor = .systemGray4
         
-        // Main split view for readers
-        let splitStack = UIStackView(arrangedSubviews: [leftStack, rightStack])
-        splitStack.axis = .horizontal
-        splitStack.distribution = .fillEqually
-        splitStack.spacing = 1.0
-        splitStack.backgroundColor = .systemGray4
+        // Create reader containers
+        let readerStack = UIStackView(arrangedSubviews: [leftContainer, rightContainer])
+        readerStack.distribution = .fillEqually
+        readerStack.spacing = 1
+        readerStack.backgroundColor = .systemGray4
         
-        // Big compare button at bottom with liquid glass effect (no green)
-        compareButton.setTitle("Compare Standards", for: .normal)
-        compareButton.titleLabel?.font = Typography.bodyMedium()
-        compareButton.setTitleColor(.pmBlack, for: .normal)
-        LiquidGlassStyle.applyToButton(compareButton, tintColor: .white.withAlphaComponent(0.25))
+        // Setup compare button with new style
+        compareButton.setTitle("Compare Current Pages", for: .normal)
+        PrimaryButtonStyle.applyTo(compareButton, backgroundColor: .pmMintDark)
         compareButton.addTarget(self, action: #selector(compareButtonTapped), for: .touchUpInside)
         
-        // Hide comparison summary initially
-        comparisonSummaryView.isHidden = true
-        
-        view.addSubview(splitStack)
+        view.addSubview(headerStack)
+        view.addSubview(readerStack)
         view.addSubview(compareButton)
         
-        splitStack.translatesAutoresizingMaskIntoConstraints = false
+        headerStack.translatesAutoresizingMaskIntoConstraints = false
+        readerStack.translatesAutoresizingMaskIntoConstraints = false
         compareButton.translatesAutoresizingMaskIntoConstraints = false
         
         NSLayoutConstraint.activate([
-            splitStack.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
-            splitStack.leadingAnchor.constraint(equalTo: view.leadingAnchor),
-            splitStack.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-            splitStack.bottomAnchor.constraint(equalTo: compareButton.topAnchor, constant: -8),
+            headerStack.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
+            headerStack.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            headerStack.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            headerStack.heightAnchor.constraint(equalToConstant: 44),
             
-            compareButton.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 16),
-            compareButton.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -16),
-            compareButton.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor, constant: -8),
-            compareButton.heightAnchor.constraint(equalToConstant: 56)
+            readerStack.topAnchor.constraint(equalTo: headerStack.bottomAnchor),
+            readerStack.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            readerStack.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            readerStack.bottomAnchor.constraint(equalTo: compareButton.topAnchor, constant: -Spacing.sm),
+            
+            compareButton.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: Spacing.md),
+            compareButton.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -Spacing.md),
+            compareButton.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor, constant: -Spacing.xs),
+            compareButton.heightAnchor.constraint(equalToConstant: 50)
         ])
     }
     
-    @objc private func compareButtonTapped() {
-        // Show comparison summary in a modal sheet
-        let summaryVC = UIViewController()
-        summaryVC.view.backgroundColor = .pmBackground
+    private func createHeaderView(button: UIButton, side: Side) -> UIView {
+        let container = UIView()
+        container.backgroundColor = .pmSurface
         
-        let summaryView = ComparisonSummaryView()
-        summaryVC.view.addSubview(summaryView)
-        summaryView.translatesAutoresizingMaskIntoConstraints = false
+        button.setTitle("Select...", for: .normal)
+        button.titleLabel?.font = Typography.bodyMedium()
+        button.setTitleColor(.pmTextPrimary, for: .normal)
+        button.backgroundColor = .pmSoftGray
+        button.layer.cornerRadius = 8
+        button.addTarget(self, action: side == .left ? #selector(selectLeftBook) : #selector(selectRightBook), for: .touchUpInside)
         
+        container.addSubview(button)
+        button.translatesAutoresizingMaskIntoConstraints = false
         NSLayoutConstraint.activate([
-            summaryView.topAnchor.constraint(equalTo: summaryVC.view.safeAreaLayoutGuide.topAnchor, constant: 20),
-            summaryView.leadingAnchor.constraint(equalTo: summaryVC.view.leadingAnchor, constant: 16),
-            summaryView.trailingAnchor.constraint(equalTo: summaryVC.view.trailingAnchor, constant: -16),
-            summaryView.bottomAnchor.constraint(lessThanOrEqualTo: summaryVC.view.safeAreaLayoutGuide.bottomAnchor, constant: -20)
+            button.topAnchor.constraint(equalTo: container.topAnchor, constant: 6),
+            button.bottomAnchor.constraint(equalTo: container.bottomAnchor, constant: -6),
+            button.leadingAnchor.constraint(equalTo: container.leadingAnchor, constant: 8),
+            button.trailingAnchor.constraint(equalTo: container.trailingAnchor, constant: -8)
         ])
         
-        let navController = UINavigationController(rootViewController: summaryVC)
-        navController.navigationBar.topItem?.title = "Comparison Results"
-        navController.navigationBar.topItem?.rightBarButtonItem = UIBarButtonItem(barButtonSystemItem: .done, target: self, action: #selector(dismissComparison))
-        
-        if let sheet = navController.sheetPresentationController {
-            sheet.detents = [.medium(), .large()]
-            sheet.prefersGrabberVisible = true
-        }
-        
-        present(navController, animated: true)
-    }
-    
-    @objc private func dismissComparison() {
-        dismiss(animated: true)
-    }
-    
-    private func createSideView(
-        container: UIView,
-        headerButton: UIButton,
-        prevButton: UIButton,
-        nextButton: UIButton,
-        pageLabel: UILabel,
-        side: Side
-    ) -> UIView {
-        let containerView = UIView()
-        containerView.backgroundColor = .pmSurface
-        
-        // Header button for book selection
-        headerButton.setTitle("Select Book", for: .normal)
-        headerButton.titleLabel?.font = Typography.body()
-        headerButton.backgroundColor = .pmSoftGray
-        headerButton.setTitleColor(.pmTextPrimary, for: .normal)
-        headerButton.layer.cornerRadius = 8
-        headerButton.addTarget(self, action: side == .left ? #selector(selectLeftBook) : #selector(selectRightBook), for: .touchUpInside)
-        
-        // Navigation controls
-        prevButton.setImage(UIImage(systemName: "chevron.left.circle.fill"), for: .normal)
-        prevButton.tintColor = .systemBlue
-        prevButton.addTarget(self, action: side == .left ? #selector(leftPrevPage) : #selector(rightPrevPage), for: .touchUpInside)
-        
-        nextButton.setImage(UIImage(systemName: "chevron.right.circle.fill"), for: .normal)
-        nextButton.tintColor = .systemBlue
-        nextButton.addTarget(self, action: side == .left ? #selector(leftNextPage) : #selector(rightNextPage), for: .touchUpInside)
-        
-        // TOC button for jumping to chapters
-        let tocButton = UIButton(type: .system)
-        tocButton.setImage(UIImage(systemName: "list.bullet.circle.fill"), for: .normal)
-        tocButton.tintColor = .systemPurple
-        tocButton.addTarget(self, action: side == .left ? #selector(showLeftTOC) : #selector(showRightTOC), for: .touchUpInside)
-        
-        pageLabel.text = "Ready"
-        pageLabel.font = Typography.caption()
-        pageLabel.textAlignment = .center
-        pageLabel.textColor = .pmTextSecondary
-        
-        let navStack = UIStackView(arrangedSubviews: [prevButton, tocButton, pageLabel, nextButton])
-        navStack.axis = .horizontal
-        navStack.spacing = 6
-        navStack.distribution = .fill
-        pageLabel.setContentHuggingPriority(.defaultLow, for: .horizontal)
-        prevButton.setContentHuggingPriority(.required, for: .horizontal)
-        nextButton.setContentHuggingPriority(.required, for: .horizontal)
-        tocButton.setContentHuggingPriority(.required, for: .horizontal)
-        
-        // Reader container
-        container.backgroundColor = .secondarySystemBackground
-        
-        // Layout
-        containerView.addSubview(headerButton)
-        containerView.addSubview(navStack)
-        containerView.addSubview(container)
-        
-        headerButton.translatesAutoresizingMaskIntoConstraints = false
-        navStack.translatesAutoresizingMaskIntoConstraints = false
-        container.translatesAutoresizingMaskIntoConstraints = false
-        
-        NSLayoutConstraint.activate([
-            headerButton.topAnchor.constraint(equalTo: containerView.topAnchor),
-            headerButton.leadingAnchor.constraint(equalTo: containerView.leadingAnchor),
-            headerButton.trailingAnchor.constraint(equalTo: containerView.trailingAnchor),
-            headerButton.heightAnchor.constraint(equalToConstant: 36),
-            
-            navStack.topAnchor.constraint(equalTo: headerButton.bottomAnchor, constant: 4),
-            navStack.leadingAnchor.constraint(equalTo: containerView.leadingAnchor, constant: 8),
-            navStack.trailingAnchor.constraint(equalTo: containerView.trailingAnchor, constant: -8),
-            navStack.heightAnchor.constraint(equalToConstant: 32),
-            
-            container.topAnchor.constraint(equalTo: navStack.bottomAnchor, constant: 4),
-            container.bottomAnchor.constraint(equalTo: containerView.bottomAnchor),
-            container.leadingAnchor.constraint(equalTo: containerView.leadingAnchor),
-            container.trailingAnchor.constraint(equalTo: containerView.trailingAnchor)
-        ])
-        
-        return containerView
+        return container
     }
     
     private func loadDefaultStandards() {
-        // Load PMBOK vs PRINCE2 by default
         if let pmbok = StandardsData.allStandards.first(where: { $0.fileName == "PMBOK" }) {
             loadStandard(pmbok, in: .left)
         }
-        
         if let prince2 = StandardsData.allStandards.first(where: { $0.fileName == "PRINCE2" }) {
             loadStandard(prince2, in: .right)
         }
@@ -266,82 +145,44 @@ class CompareViewController: UIViewController {
     
     private func loadStandard(_ standard: Standard, in side: Side) {
         Task {
-            // Load publication
-            guard let bookPath = Bundle.main.path(forResource: standard.fileName, ofType: "epub"),
-                  let fileURL = FileURL(url: URL(fileURLWithPath: bookPath)) else {
-                return
-            }
-            
-            do {
-                let httpClient = DefaultHTTPClient()
-                let assetRetriever = AssetRetriever(httpClient: httpClient)
-                let asset = try await assetRetriever.retrieve(url: fileURL).get()
-                
-                let publicationOpener = PublicationOpener(
-                    parser: DefaultPublicationParser(
-                        httpClient: httpClient,
-                        assetRetriever: assetRetriever,
-                        pdfFactory: DefaultPDFDocumentFactory()
-                    )
-                )
-                
-                let publication = try await publicationOpener.open(
-                    asset: asset,
-                    allowUserInteraction: false,
-                    sender: self
-                ).get()
-                
-                let httpServer = GCDHTTPServer(assetRetriever: assetRetriever)
-                
+            if let publication = await RediumHelper.shared.loadPublication(for: standard, from: self) {
                 await MainActor.run {
-                    embedReader(publication: publication, fileName: standard.fileName, title: standard.title, httpServer: httpServer, in: side)
+                    embedReader(publication: publication, standard: standard, in: side)
                 }
-            } catch {
-                print("Failed to load \(standard.title): \(error)")
             }
         }
     }
     
-    private func embedReader(publication: Publication, fileName: String, title: String, httpServer: HTTPServer, in side: Side) {
-        // Remove existing reader if present
-        if side == .left {
-            leftReaderVC?.removeFromParent()
-            leftReaderVC?.view.removeFromSuperview()
-            leftReaderVC = nil
-        } else {
-            rightReaderVC?.removeFromParent()
-            rightReaderVC?.view.removeFromSuperview()
-            rightReaderVC = nil
-        }
+    private func embedReader(publication: Publication, standard: Standard, in side: Side) {
+        let existingReader = side == .left ? leftReaderVC : rightReaderVC
+        existingReader?.willMove(toParent: nil)
+        existingReader?.view.removeFromSuperview()
+        existingReader?.removeFromParent()
         
-        // Apply minimal settings before creating reader
         applySplitViewSettings()
         
-        // Create reader
         let readerVC = ReaderViewController(
             publication: publication,
-            publicationFileName: fileName,
-            httpServer: httpServer,
+            publicationFileName: standard.fileName,
+            httpServer: RediumHelper.shared.httpServer,
             isEmbedded: true
         )
         
-        // Store reference
         if side == .left {
             leftReaderVC = readerVC
-            leftStandard = StandardsData.allStandards.first(where: { $0.fileName == fileName })
-            leftHeaderButton.setTitle(title, for: .normal)
+            leftStandard = standard
+            leftHeaderButton.setTitle(standard.title, for: .normal)
         } else {
             rightReaderVC = readerVC
-            rightStandard = StandardsData.allStandards.first(where: { $0.fileName == fileName })
-            rightHeaderButton.setTitle(title, for: .normal)
+            rightStandard = standard
+            rightHeaderButton.setTitle(standard.title, for: .normal)
         }
         
-        // Embed
         addChild(readerVC)
         let container = side == .left ? leftContainer : rightContainer
         container.addSubview(readerVC.view)
-        readerVC.view.translatesAutoresizingMaskIntoConstraints = false
         
+        readerVC.view.translatesAutoresizingMaskIntoConstraints = false
         NSLayoutConstraint.activate([
             readerVC.view.topAnchor.constraint(equalTo: container.topAnchor),
             readerVC.view.bottomAnchor.constraint(equalTo: container.bottomAnchor),
@@ -350,40 +191,71 @@ class CompareViewController: UIViewController {
         ])
         
         readerVC.didMove(toParent: self)
-        
-        // Log navigation state for debugging
-        print("Compare: Embedded reader for \(title), navigator available: \(readerVC.epubNavigator != nil)")
     }
     
-    // MARK: - Actions
+    // MARK: - Actions & Comparison Logic
     
-    @objc private func selectLeftBook() {
-        showBookSelector(for: .left)
-    }
-    
-    @objc private func selectRightBook() {
-        showBookSelector(for: .right)
-    }
-    
-    @objc private func showLeftTOC() {
-        guard let readerVC = leftReaderVC else { return }
-        showTOC(for: readerVC, side: .left)
-    }
-    
-    @objc private func showRightTOC() {
-        guard let readerVC = rightReaderVC else { return }
-        showTOC(for: readerVC, side: .right)
-    }
-    
-    private func showTOC(for readerVC: ReaderViewController, side: Side) {
-        guard let publication = readerVC.epubNavigator?.publication else { return }
-        
-        let tocVC = TOCViewController(publication: publication)
-        tocVC.onSelectChapter = { [weak self] link in
-            self?.navigateToChapter(link, in: side)
+    @objc private func compareButtonTapped() {
+        let button = compareButton
+        button.transform = CGAffineTransform(scaleX: 0.95, y: 0.95)
+        UIView.animate(withDuration: 0.2) {
+            button.transform = .identity
         }
         
-        let navController = UINavigationController(rootViewController: tocVC)
+        Task {
+            guard let leftReader = leftReaderVC, let rightReader = rightReaderVC,
+                  let leftStandard = leftStandard, let rightStandard = rightStandard else { return }
+            
+            let leftText = await leftReader.extractVisibleText().lowercased()
+            let rightText = await rightReader.extractVisibleText().lowercased()
+            
+            var similarities = [ComparisonResult]()
+            var differences = [ComparisonResult]()
+            
+            for (topic, keywords) in analysisTopics {
+                let leftMatches = keywords.filter { leftText.contains($0) }
+                let rightMatches = keywords.filter { rightText.contains($0) }
+                
+                if !leftMatches.isEmpty && !rightMatches.isEmpty {
+                    let snippet = "Both standards discuss topics related to '\(leftMatches.first!)'."
+                    similarities.append(ComparisonResult(topic: topic, snippet: snippet, sourceStandard: "\(leftStandard.title) & \(rightStandard.title)", side: .left))
+                } else if !leftMatches.isEmpty {
+                    let snippet = "Mentions '\(leftMatches.first!)', a key aspect of this topic."
+                    differences.append(ComparisonResult(topic: topic, snippet: snippet, sourceStandard: leftStandard.title, side: .left))
+                } else if !rightMatches.isEmpty {
+                    let snippet = "Mentions '\(rightMatches.first!)', a key aspect of this topic."
+                    differences.append(ComparisonResult(topic: topic, snippet: snippet, sourceStandard: rightStandard.title, side: .right))
+                }
+            }
+            
+            await MainActor.run {
+                presentComparisonResults(similarities: similarities, differences: differences)
+            }
+        }
+    }
+    
+    private func presentComparisonResults(similarities: [ComparisonResult], differences: [ComparisonResult]) {
+        let summaryVC = UIViewController()
+        let summaryView = ComparisonSummaryView()
+        
+        summaryVC.view.addSubview(summaryView)
+        summaryView.translatesAutoresizingMaskIntoConstraints = false
+        summaryView.updateContent(similarities: similarities, differences: differences)
+        
+        summaryView.onResultTapped = { [weak self] result in
+            self?.dismiss(animated: true) { self?.handleDeepLink(for: result) }
+        }
+        
+        NSLayoutConstraint.activate([
+            summaryView.topAnchor.constraint(equalTo: summaryVC.view.safeAreaLayoutGuide.topAnchor),
+            summaryView.leadingAnchor.constraint(equalTo: summaryVC.view.leadingAnchor),
+            summaryView.trailingAnchor.constraint(equalTo: summaryVC.view.trailingAnchor),
+            summaryView.bottomAnchor.constraint(equalTo: summaryVC.view.bottomAnchor)
+        ])
+        
+        let navController = UINavigationController(rootViewController: summaryVC)
+        navController.navigationBar.topItem?.title = "Comparison Results"
+        
         if let sheet = navController.sheetPresentationController {
             sheet.detents = [.medium(), .large()]
             sheet.prefersGrabberVisible = true
@@ -391,27 +263,20 @@ class CompareViewController: UIViewController {
         present(navController, animated: true)
     }
     
-    private func navigateToChapter(_ link: Link, in side: Side) {
+    private func handleDeepLink(for result: ComparisonResult) {
         Task {
-            guard let anyURL = AnyURL(string: link.href) else { return }
-            let locator = Locator(
-                href: anyURL,
-                mediaType: link.mediaType ?? MediaType.html,
-                title: link.title
-            )
-            
-            let navigator = side == .left ? leftReaderVC?.epubNavigator : rightReaderVC?.epubNavigator
-            await navigator?.go(to: locator)
-            
-            await MainActor.run {
-                let label = side == .left ? leftPageLabel : rightPageLabel
-                label.text = link.title ?? "Chapter"
+            let readerToSearch = (result.side == .left) ? leftReaderVC : rightReaderVC
+            if let keyword = analysisTopics[result.topic]?.first {
+                await readerToSearch?.findAndHighlight(text: keyword)
             }
         }
     }
     
+    @objc private func selectLeftBook() { showBookSelector(for: .left) }
+    @objc private func selectRightBook() { showBookSelector(for: .right) }
+    
     private func showBookSelector(for side: Side) {
-        let alert = UIAlertController(title: "Select Book", message: nil, preferredStyle: .actionSheet)
+        let alert = UIAlertController(title: "Select Standard", message: nil, preferredStyle: .actionSheet)
         
         for standard in StandardsData.allStandards {
             alert.addAction(UIAlertAction(title: standard.title, style: .default) { [weak self] _ in
@@ -420,110 +285,11 @@ class CompareViewController: UIViewController {
         }
         
         alert.addAction(UIAlertAction(title: "Cancel", style: .cancel))
-        
         if let popover = alert.popoverPresentationController {
             popover.sourceView = side == .left ? leftHeaderButton : rightHeaderButton
-            popover.sourceRect = (side == .left ? leftHeaderButton : rightHeaderButton).bounds
         }
-        
         present(alert, animated: true)
     }
-    
-    @objc private func leftPrevPage() {
-        print("Compare: Left prev button tapped")
-        Task {
-            guard let navigator = leftReaderVC?.epubNavigator else {
-                print("Compare: Left navigator not available")
-                await MainActor.run {
-                    showNavigationError(for: .left)
-                }
-                return
-            }
-            let result = await navigator.goBackward()
-            print("Compare: Left goBackward result: \(result)")
-            await updatePageLabel(for: .left)
-        }
-    }
-    
-    @objc private func leftNextPage() {
-        print("Compare: Left next button tapped")
-        Task {
-            guard let navigator = leftReaderVC?.epubNavigator else {
-                print("Compare: Left navigator not available")
-                await MainActor.run {
-                    showNavigationError(for: .left)
-                }
-                return
-            }
-            let result = await navigator.goForward()
-            print("Compare: Left goForward result: \(result)")
-            await updatePageLabel(for: .left)
-        }
-    }
-    
-    @objc private func rightPrevPage() {
-        print("Compare: Right prev button tapped")
-        Task {
-            guard let navigator = rightReaderVC?.epubNavigator else {
-                print("Compare: Right navigator not available")
-                await MainActor.run {
-                    showNavigationError(for: .right)
-                }
-                return
-            }
-            let result = await navigator.goBackward()
-            print("Compare: Right goBackward result: \(result)")
-            await updatePageLabel(for: .right)
-        }
-    }
-    
-    @objc private func rightNextPage() {
-        print("Compare: Right next button tapped")
-        Task {
-            guard let navigator = rightReaderVC?.epubNavigator else {
-                print("Compare: Right navigator not available")
-                await MainActor.run {
-                    showNavigationError(for: .right)
-                }
-                return
-            }
-            let result = await navigator.goForward()
-            print("Compare: Right goForward result: \(result)")
-            await updatePageLabel(for: .right)
-        }
-    }
-    
-    // MARK: - Helper Methods
-    
-    private func updatePageLabel(for side: Side) async {
-        await MainActor.run {
-            let label = side == .left ? leftPageLabel : rightPageLabel
-            label.text = "📄"
-            
-            // Briefly flash the label to show it updated
-            UIView.animate(withDuration: 0.15) {
-                label.transform = CGAffineTransform(scaleX: 1.3, y: 1.3)
-            } completion: { _ in
-                UIView.animate(withDuration: 0.15) {
-                    label.transform = .identity
-                }
-            }
-        }
-    }
-    
-    private func showNavigationError(for side: Side) {
-        let alert = UIAlertController(
-            title: "Navigation Error",
-            message: "Please wait for the \(side == .left ? "left" : "right") reader to fully load.",
-            preferredStyle: .alert
-        )
-        alert.addAction(UIAlertAction(title: "OK", style: .default))
-        present(alert, animated: true)
-    }
-    
-    // MARK: - Helper Types
-    
-    enum Side {
-        case left, right
-    }
+
+    enum Side { case left, right }
 }

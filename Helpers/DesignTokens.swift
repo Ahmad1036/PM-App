@@ -2,7 +2,7 @@
 //  DesignTokens.swift
 //  PM-App
 //
-//  Design system tokens extracted from Dribbble design
+//  Design system tokens for a clean, modern UI
 //
 
 import UIKit
@@ -16,24 +16,25 @@ extension UIColor {
     static let pmMintLight = UIColor(hex: "#B3FFF0")
     static let pmMintDark = UIColor(hex: "#2DDAB8")
     
-    static let pmBlack = UIColor(hex: "#000000")
-    static let pmWhite = UIColor(hex: "#F8F8F8")
-    static let pmOffWhite = UIColor(hex: "#FAFAFA")
-    static let pmSoftGray = UIColor(hex: "#F5F5F7")
-    
     // Accents
     static let pmCoral = UIColor(hex: "#FF6B9D")
     static let pmGold = UIColor(hex: "#FFD700")
     
-    // Adaptive (Light/Dark Mode)
-    static var pmBackground: UIColor {
-        UIColor { $0.userInterfaceStyle == .dark ? UIColor(hex: "#0A0A0A") : UIColor(hex: "#FAF8FF") }
-    }
+    // Neutrals
+    static let pmBlack = UIColor(hex: "#000000")
+    static let pmWhite = UIColor(hex: "#FFFFFF")
+    static let pmOffWhite = UIColor(hex: "#FAFAFA")
+    static let pmSoftGray = UIColor(hex: "#F5F5F7")
     
     // Gradient colors for exciting background
     static let pmGradient1 = UIColor(hex: "#FFE5F0") // Soft pink
     static let pmGradient2 = UIColor(hex: "#E5F0FF") // Soft blue
     static let pmGradient3 = UIColor(hex: "#FFF5E5") // Soft peach
+    
+    // Adaptive (Light/Dark Mode)
+    static var pmBackground: UIColor {
+        UIColor { $0.userInterfaceStyle == .dark ? UIColor(hex: "#0A0A0A") : UIColor(hex: "#F7F7FF") }
+    }
     
     static var pmSurface: UIColor {
         UIColor { $0.userInterfaceStyle == .dark ? UIColor(hex: "#1A1A1A") : pmWhite }
@@ -64,128 +65,78 @@ extension UIColor {
 // MARK: - Typography
 
 struct Typography {
-    // New Kansas Font
     private static let newKansasName = "NewKansas-Regular"
     private static let newKansasMediumName = "NewKansas-Medium"
     private static let newKansasBoldName = "NewKansas-Bold"
     
-    static func largeTitle() -> UIFont { 
-        UIFont(name: newKansasBoldName, size: 34) ?? .systemFont(ofSize: 34, weight: .bold) 
-    }
-    static func title1() -> UIFont { 
-        UIFont(name: newKansasBoldName, size: 28) ?? .systemFont(ofSize: 28, weight: .bold) 
-    }
-    static func title2() -> UIFont { 
-        UIFont(name: newKansasMediumName, size: 22) ?? .systemFont(ofSize: 22, weight: .semibold) 
-    }
-    static func body() -> UIFont { 
-        UIFont(name: newKansasName, size: 17) ?? .systemFont(ofSize: 17, weight: .regular) 
-    }
-    static func bodyMedium() -> UIFont { 
-        UIFont(name: newKansasMediumName, size: 17) ?? .systemFont(ofSize: 17, weight: .medium) 
-    }
-    static func caption() -> UIFont { 
-        UIFont(name: newKansasName, size: 12) ?? .systemFont(ofSize: 12, weight: .regular) 
-    }
+    static func largeTitle() -> UIFont { UIFont(name: newKansasBoldName, size: 34) ?? .systemFont(ofSize: 34, weight: .bold) }
+    static func title1() -> UIFont { UIFont(name: newKansasBoldName, size: 28) ?? .systemFont(ofSize: 28, weight: .bold) }
+    static func title2() -> UIFont { UIFont(name: newKansasMediumName, size: 22) ?? .systemFont(ofSize: 22, weight: .semibold) }
+    static func body() -> UIFont { UIFont(name: newKansasName, size: 17) ?? .systemFont(ofSize: 17, weight: .regular) }
+    static func bodyMedium() -> UIFont { UIFont(name: newKansasMediumName, size: 17) ?? .systemFont(ofSize: 17, weight: .medium) }
+    static func caption() -> UIFont { UIFont(name: newKansasName, size: 12) ?? .systemFont(ofSize: 12, weight: .regular) }
 }
 
-// MARK: - Spacing
+
+// MARK: - Spacing & Corner Radius
 
 struct Spacing {
     static let xs: CGFloat = 8
     static let sm: CGFloat = 12
     static let md: CGFloat = 16
     static let lg: CGFloat = 24
-    static let xl: CGFloat = 32
 }
 
 struct CornerRadius {
-    static let button: CGFloat = 12
+    static let button: CGFloat = 14
     static let card: CGFloat = 20
-    static let liquidGlass: CGFloat = 16
 }
 
-// MARK: - Liquid Glass Effects
 
-struct LiquidGlassStyle {
-    static func applyToView(_ view: UIView, tintColor: UIColor = .pmMint.withAlphaComponent(0.15)) {
-        // Add blur effect
-        let blurEffect = UIBlurEffect(style: .systemUltraThinMaterial)
+// MARK: - UI Styles
+
+// Style for primary call-to-action buttons
+struct PrimaryButtonStyle {
+    static func applyTo(_ button: UIButton, backgroundColor: UIColor = .pmCoral) {
+        button.backgroundColor = backgroundColor
+        button.setTitleColor(.pmWhite, for: .normal)
+        button.titleLabel?.font = Typography.bodyMedium()
+        button.layer.cornerRadius = CornerRadius.button
+        button.layer.shadowColor = UIColor.black.cgColor
+        button.layer.shadowOffset = CGSize(width: 0, height: 4)
+        button.layer.shadowRadius = 8
+        button.layer.shadowOpacity = 0.1
+    }
+}
+
+// Style for translucent, glass-like card views
+struct TranslucentCardStyle {
+    static func applyTo(_ view: UIView) {
+        view.backgroundColor = .clear
+        
+        let blurEffect = UIBlurEffect(style: .systemMaterial)
         let blurView = UIVisualEffectView(effect: blurEffect)
         blurView.frame = view.bounds
         blurView.autoresizingMask = [.flexibleWidth, .flexibleHeight]
-        blurView.layer.cornerRadius = view.layer.cornerRadius
+        blurView.layer.cornerRadius = CornerRadius.card
         blurView.clipsToBounds = true
         view.insertSubview(blurView, at: 0)
         
-        // Add colored tint overlay
-        let tintView = UIView(frame: view.bounds)
-        tintView.backgroundColor = tintColor
-        tintView.autoresizingMask = [.flexibleWidth, .flexibleHeight]
-        tintView.layer.cornerRadius = view.layer.cornerRadius
-        tintView.clipsToBounds = true
-        view.insertSubview(tintView, at: 1)
-        
-        // Add subtle border
-        view.layer.borderWidth = 1
-        view.layer.borderColor = UIColor.white.withAlphaComponent(0.3).cgColor
-        
-        // Add shadow for depth
+        view.layer.cornerRadius = CornerRadius.card
         view.layer.shadowColor = UIColor.black.cgColor
         view.layer.shadowOffset = CGSize(width: 0, height: 4)
         view.layer.shadowRadius = 12
         view.layer.shadowOpacity = 0.08
-    }
-    
-    static func applyToButton(_ button: UIButton, tintColor: UIColor = .pmCoral.withAlphaComponent(0.15)) {
-        button.layer.cornerRadius = CornerRadius.liquidGlass
-        button.clipsToBounds = false
-        
-        // Create container for blur effect
-        let blurEffect = UIBlurEffect(style: .systemUltraThinMaterial)
-        let blurView = UIVisualEffectView(effect: blurEffect)
-        blurView.isUserInteractionEnabled = false
-        blurView.layer.cornerRadius = CornerRadius.liquidGlass
-        blurView.clipsToBounds = true
-        
-        // Add tint overlay
-        let tintView = UIView()
-        tintView.backgroundColor = tintColor
-        tintView.isUserInteractionEnabled = false
-        
-        button.insertSubview(blurView, at: 0)
-        button.insertSubview(tintView, at: 1)
-        
-        blurView.translatesAutoresizingMaskIntoConstraints = false
-        tintView.translatesAutoresizingMaskIntoConstraints = false
-        
-        NSLayoutConstraint.activate([
-            blurView.topAnchor.constraint(equalTo: button.topAnchor),
-            blurView.bottomAnchor.constraint(equalTo: button.bottomAnchor),
-            blurView.leadingAnchor.constraint(equalTo: button.leadingAnchor),
-            blurView.trailingAnchor.constraint(equalTo: button.trailingAnchor),
-            
-            tintView.topAnchor.constraint(equalTo: button.topAnchor),
-            tintView.bottomAnchor.constraint(equalTo: button.bottomAnchor),
-            tintView.leadingAnchor.constraint(equalTo: button.leadingAnchor),
-            tintView.trailingAnchor.constraint(equalTo: button.trailingAnchor)
-        ])
-        
-        // Styling
-        button.layer.borderWidth = 1
-        button.layer.borderColor = UIColor.white.withAlphaComponent(0.4).cgColor
-        button.layer.shadowColor = UIColor.black.cgColor
-        button.layer.shadowOffset = CGSize(width: 0, height: 4)
-        button.layer.shadowRadius = 12
-        button.layer.shadowOpacity = 0.1
+        view.layer.borderColor = UIColor.white.withAlphaComponent(0.2).cgColor
+        view.layer.borderWidth = 1.0
     }
 }
+
 
 // MARK: - Gradient Background Helper
 
 extension UIView {
     func addExcitingGradientBackground() {
-        // Remove any existing gradient layers
         layer.sublayers?.filter { $0 is CAGradientLayer }.forEach { $0.removeFromSuperlayer() }
         
         let gradientLayer = CAGradientLayer()
